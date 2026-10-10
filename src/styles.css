@@ -26,3 +26,28 @@ footer{display:flex;justify-content:space-between;margin-top:16px;gap:8px;flex-w
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--t);color:#fff;padding:12px 20px;border-radius:12px;z-index:30}.ok{background:#D1FAE5;color:#065F46;padding:12px;border-radius:10px;margin-top:12px}.menu{display:none}
 @media(max-width:768px){aside{position:fixed;inset:0 auto 0 0;transform:translateX(-100%);transition:.2s;z-index:15}aside.open{transform:none}.menu{display:block}main{padding:12px}}
 @media print{body *{visibility:hidden}.paper,.paper *{visibility:visible}.paper{position:absolute;left:0;top:0;width:100%;border:0;box-shadow:none}}
+/* ===== Premium theme (EduPaper AI logo colours) ===== */
+:root{--p:#1D5FE0;--v:#7C3AED;--a:#F59E0B;--bg:#F4F6FD;--t:#0F1A44;--t2:#5B6785;--b:#E3E8F5;--g:linear-gradient(135deg,#1D6BF3 0%,#5B4BEA 55%,#8B3FF0 100%)}
+body{background:radial-gradient(1100px 480px at 85% -10%,#E3EAFF,transparent),var(--bg);color:var(--t);letter-spacing:-.005em}
+h2{font-size:28px;letter-spacing:-.02em;margin:8px 0 12px}h3{margin:26px 0 10px}button svg{vertical-align:-3px}
+aside{box-shadow:4px 0 24px #1D5FE00D;gap:6px}.brand img{width:100%;max-width:190px;mix-blend-mode:multiply;display:block;margin:0 auto 14px}aside.col .brand img{max-width:48px}
+.nav{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;color:var(--t2);font-weight:500}.nav:hover{background:#F1F4FD;color:var(--t)}
+.nav.on{background:var(--g);color:#fff;box-shadow:0 6px 16px #5B4BEA40;font-weight:600}
+header{background:#fff;border:1px solid var(--b);border-radius:16px;padding:10px 14px;box-shadow:0 4px 16px #1D5FE00F}header input{border:0;background:#F4F6FD}
+button,.btn{border-radius:12px;transition:.15s;color:var(--t)}button:hover:not(:disabled):not(.primary):not(.nav):not(.cta){border-color:#B9C6EE;background:#F7F9FF}
+.primary,.cta{background:var(--g);color:#fff;border:0;font-weight:600;box-shadow:0 6px 16px #5B4BEA33}.primary:hover:not(:disabled),.cta:hover{transform:translateY(-1px);box-shadow:0 10px 22px #5B4BEA4D}
+input:focus,select:focus,textarea:focus{border-color:var(--p);box-shadow:0 0 0 4px #1D5FE01A;outline:0}
+.card{border-radius:20px;box-shadow:0 2px 6px #0F1A440A,0 12px 32px #1D5FE00A}.pick{transition:.18s}.pick:hover{transform:translateY(-3px);box-shadow:0 14px 32px #5B4BEA24;border-color:#B9C6EE}
+.pick.on{border:2px solid var(--p);background:linear-gradient(180deg,#F3F6FF,#F7F1FF)}
+.ci{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#E3EDFF,#EFE6FF);color:var(--p);margin-bottom:6px}
+.hero{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:34px;border-radius:26px;color:#fff;background:linear-gradient(120deg,#0F1A44 0%,#1D5FE0 58%,#8B3FF0 115%);box-shadow:0 22px 50px #1D5FE033}
+.hero h2{color:#fff;max-width:540px;font-size:30px}.hero p{color:#DCE5FF;max-width:520px;margin-bottom:18px}
+.hero .cta{background:#fff;color:var(--p);box-shadow:none;padding:14px 22px;font-size:17px}.hero .cta:hover{box-shadow:0 10px 24px #0004}
+.hm{height:150px;border-radius:24px;background:#fff;padding:8px;box-shadow:0 10px 30px #0003}
+.stat b{background:var(--g);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:36px}
+.steps button{padding:8px 14px;background:#fff}.steps .on{background:var(--g);border:0;color:#fff;box-shadow:0 6px 14px #5B4BEA33}.steps .done{color:#059669;border-color:#A7E3CB}
+.sum{background:linear-gradient(90deg,#EEF3FF,#F5EEFF);border-left:4px solid var(--a)}.warn{background:#FFF4D6;color:#92560A}.ai{background:#EDE6FF;color:#5B21B6}
+.tabs .on{background:var(--g);border:0;color:#fff}.drop{background:linear-gradient(180deg,#fff,#F5F8FF);border:2px dashed #9DB4F0}
+.thumb b{background:var(--g);border-radius:3px}.thumb{box-shadow:0 4px 12px #1D5FE014}.bar div{background:var(--g)}
+.toast{background:var(--t);border-left:4px solid var(--a)}.paper{box-shadow:0 20px 50px #0F1A4414}
+@media(max-width:768px){.hero{flex-direction:column;align-items:flex-start;padding:22px}.hm{height:90px}h2{font-size:23px}}

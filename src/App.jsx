@@ -2,9 +2,13 @@ import { useState } from 'react'
 import katex from 'katex'
 import 'katex/contrib/mhchem'
 import { Document, Packer, Paragraph, TextRun } from 'docx'
+import logo from './assets/logo-full.png'
+import mark from './assets/mark.png'
 import { CUR, BANK, TEMPLATES, CATS, MEDIA, TYPES, AI_TXT, FORMATS0, PAPERS0 } from './data.js'
 
-const NAV = [['Dashboard', '🏠'], ['Generate Paper', '✨'], ['Question Bank', '📚'], ['Templates & My Formats', '🗂'], ['My Papers', '📄'], ['Subjects & Chapters', '📖'], ['Profile', '👤'], ['Settings', '⚙️']]
+const NAV = [['Dashboard', 'home'], ['Generate Paper', 'sparkles'], ['Question Bank', 'book'], ['Templates & My Formats', 'layout'], ['My Papers', 'file'], ['Subjects & Chapters', 'list'], ['Profile', 'user'], ['Settings', 'sliders']]
+const I = { home: 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', sparkles: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z', book: 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 1 2-2h13', layout: 'M3 4h18v6H3zM3 14h8v6H3zM15 14h6v6h-6z', file: 'M6 2h8l5 5v15H6zM14 2v5h5', list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01', user: 'M20 21a8 8 0 0 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8', sliders: 'M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4', bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4', help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01', up: 'M12 19V5M5 12l7-7 7 7', down: 'M12 5v14M19 12l-7 7-7-7', x: 'M18 6L6 18M6 6l12 12', star: 'M12 2l3 7 7 .6-5.3 4.7 1.6 7.2-6.3-3.7-6.3 3.7 1.6-7.2L2 9.6 9 9z', check: 'M20 6L9 17l-5-5', menu: 'M3 6h18M3 12h18M3 18h18', plus: 'M12 5v14M5 12h14', upload: 'M12 16V4M6 10l6-6 6 6M4 20h16', sigma: 'M18 5H6l7 7-7 7h12' }
+const Ic = ({ n, f, s = 18 }) => <svg width={s} height={s} viewBox="0 0 24 24" fill={f ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={I[n]} /></svg>
 const STEPS = ['Board', 'Standard', 'Subject', 'Chapters', 'Details', 'Source', 'Questions', 'Format', 'Preview', 'Export']
 const today = () => new Date().toISOString().slice(0, 10)
 let n = 100
@@ -15,7 +19,7 @@ const plain = (t = '') => t.replace(/\$/g, '').replace(/\\ce\{([^}]*)\}/g, '$1')
 const M = ({ t }) => <span dangerouslySetInnerHTML={{ __html: String(t).replace(/\$(.+?)\$/g, (_, m) => katex.renderToString(m, { throwOnError: false })) }} />
 const Diagram = () => <svg viewBox="0 0 200 80" width="200" role="img" aria-label="Dummy diagram"><rect x="1" y="1" width="198" height="78" rx="8" fill="#EEF0FF" stroke="#4F46E5" /><circle cx="60" cy="38" r="22" fill="none" stroke="#4F46E5" /><path d="M90 38h80M160 30l10 8-10 8" stroke="#7C3AED" fill="none" /><text x="100" y="74" fontSize="9" textAnchor="middle">Dummy diagram</text></svg>
 const Thumb = ({ s = '' }) => <div className={'thumb ' + s}><b /><u /><u /><u /><u /></div>
-const Modal = ({ title, onClose, children }) => <div className="ov" role="dialog" aria-label={title}><div className="card modal"><div className="row"><h3>{title}</h3><button onClick={onClose} aria-label="Close">✕</button></div>{children}</div></div>
+const Modal = ({ title, onClose, children }) => <div className="ov" role="dialog" aria-label={title}><div className="card modal"><div className="row"><h3>{title}</h3><button onClick={onClose} aria-label="Close"><Ic n="x" /></button></div>{children}</div></div>
 const Badge = ({ c = '', children }) => <i className={'bd ' + c}>{children}</i>
 
 function Eq({ onApply, onClose }) {
@@ -32,7 +36,7 @@ function QRow({ q, i, last, ch, mv, dup, del, regen, eq }) {
   const [a, setA] = useState(false)
   return <div className="card q">
     <div className="row wrap"><b>Q{i + 1}</b>
-      <span className="badges"><Badge>{q.type}</Badge><Badge>{q.diff}</Badge><Badge c={q.src === 'AI Generated' ? 'ai' : 'bk'}>{q.src === 'AI Generated' ? '✨ AI Generated' : '📚 ' + q.src}</Badge>{q.flag && <Badge c="warn">⚠ Needs review</Badge>}{!q.ans && <Badge c="warn">⚠ No answer</Badge>}</span>
+      <span className="badges"><Badge>{q.type}</Badge><Badge>{q.diff}</Badge><Badge c={q.src === 'AI Generated' ? 'ai' : 'bk'}>{q.src === 'AI Generated' ? 'AI Generated' : '' + q.src}</Badge>{q.flag && <Badge c="warn">Needs review</Badge>}{!q.ans && <Badge c="warn">No answer</Badge>}</span>
       <label className="mk">Marks <input type="number" min="0" value={q.marks} onChange={(e) => ch({ marks: +e.target.value })} /></label></div>
     <textarea aria-label={'Question ' + (i + 1)} value={q.text} onChange={(e) => ch({ text: e.target.value })} />
     <div className="prev"><M t={q.text} /></div>
@@ -40,9 +44,9 @@ function QRow({ q, i, last, ch, mv, dup, del, regen, eq }) {
     {q.subs && q.subs.map((s, k) => <input key={k} aria-label="Subquestion" value={s} onChange={(e) => ch({ subs: q.subs.map((x, j) => (j === k ? e.target.value : x)) })} />)}
     {a && <div className="ans">Answer: <M t={q.ans || '— not available —'} /></div>}
     <div className="acts">
-      <button disabled={!i} onClick={() => mv(-1)} aria-label="Move up">↑</button><button disabled={last} onClick={() => mv(1)} aria-label="Move down">↓</button>
-      <button onClick={dup}>Duplicate</button><button onClick={regen}>✨ Regenerate</button><button onClick={eq}>∑ Equation</button>
-      <button onClick={() => ch({ diagram: !q.diagram })}>🖼 Diagram</button><button onClick={() => ch({ subs: [...(q.subs || []), '(a) New subquestion'] })}>+ Sub</button>
+      <button disabled={!i} onClick={() => mv(-1)} aria-label="Move up"><Ic n="up" s={16} /></button><button disabled={last} onClick={() => mv(1)} aria-label="Move down"><Ic n="down" s={16} /></button>
+      <button onClick={dup}>Duplicate</button><button onClick={regen}>Regenerate</button><button onClick={eq}>Equation</button>
+      <button onClick={() => ch({ diagram: !q.diagram })}>Diagram</button><button onClick={() => ch({ subs: [...(q.subs || []), '(a) New subquestion'] })}>+ Sub</button>
       <button onClick={() => setA(!a)}>{a ? 'Hide' : 'Show'} answer</button><button className="dng" onClick={del}>Delete</button></div></div>
 }
 
@@ -89,7 +93,7 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
   const V = [
     <Pick items={Object.keys(CUR)} v={p.board} f={(b) => set({ board: b, std: '', subject: '', chapters: [], qs: [] })} sub="Demo content" />,
     stds.length ? <><Pick items={stds} v={p.std} f={(s) => set({ std: s, subject: '', chapters: [], qs: [] })} /><h4>Medium</h4><Pick items={MEDIA} v={p.medium} f={(m) => set({ medium: m })} /></> : <p>Select a board first.</p>,
-    subs.length ? <Pick items={subs} v={p.subject} f={(s) => set({ subject: s, chapters: [], qs: [] })} /> : <div className="card">⚠ This class is not configured yet for {p.board} (demo). Choose another class.</div>,
+    subs.length ? <Pick items={subs} v={p.subject} f={(s) => set({ subject: s, chapters: [], qs: [] })} /> : <div className="card">This class is not configured yet for {p.board} (demo). Choose another class.</div>,
     <>
       <div className="row"><input placeholder="Search chapters…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search chapters" />
         <button onClick={() => set({ chapters: p.chapters.length === Object.keys(chs).length ? [] : Object.keys(chs) })}>Select all</button></div>
@@ -104,10 +108,10 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
       <p>Chapter-wise split (auto): {p.chapters.map((c) => `${c} ≈ ${Math.round(p.marks / p.chapters.length)}m`).join(' · ')}</p>
       <label className="chip"><input type="checkbox" checked={p.neg} onChange={() => set({ neg: !p.neg })} />Negative marking</label>
       <label>Additional instructions<textarea value={p.instr} onChange={(e) => set({ instr: e.target.value })} /></label></div>,
-    <div className="grid">{[['Bank', '📚 Existing Question Bank'], ['AI', '✨ AI-Generated Questions'], ['Both', '🔀 Both Bank and AI']].map(([k, l]) => <button key={k} className={'card pick' + (p.source === k ? ' on' : '')} onClick={() => set({ source: k })}>{l}</button>)}</div>,
+    <div className="grid">{[['Bank', 'Existing Question Bank'], ['AI', 'AI-Generated Questions'], ['Both', 'Both Bank and AI']].map(([k, l]) => <button key={k} className={'card pick' + (p.source === k ? ' on' : '')} onClick={() => set({ source: k })}>{l}</button>)}</div>,
     <>
-      <div className="card sum"><b>{p.qs.length}</b> questions · <b>{total}</b> / {p.marks} marks {total !== p.marks && p.qs.length > 0 && <Badge c="warn">⚠ Marks differ from target</Badge>} · {[...new Set(p.qs.map((x) => x.ch))].map((c) => c + ': ' + p.qs.filter((x) => x.ch === c).length).join(' · ')}</div>
-      <div className="acts"><button className="primary" onClick={gen}>{p.qs.length ? '↻ Regenerate all' : '✨ Generate questions'}</button>
+      <div className="card sum"><b>{p.qs.length}</b> questions · <b>{total}</b> / {p.marks} marks {total !== p.marks && p.qs.length > 0 && <Badge c="warn">Marks differ from target</Badge>} · {[...new Set(p.qs.map((x) => x.ch))].map((c) => c + ': ' + p.qs.filter((x) => x.ch === c).length).join(' · ')}</div>
+      <div className="acts"><button className="primary" onClick={gen}>{p.qs.length ? 'Regenerate all' : 'Generate questions'}</button>
         <button onClick={() => set({ qs: [...p.qs, ai()] })}>+ Add AI question</button>
         <select aria-label="Add from bank" value="" onChange={(e) => { const x = BANK.find((b) => b.id === +e.target.value); if (x) set({ qs: [...p.qs, { ...x, uid: uid() }] }) }}><option value="">+ Add from bank…</option>{pool.map((x) => <option key={x.id} value={x.id}>{plain(x.text).slice(0, 50)}</option>)}</select></div>
       {!p.qs.length && <div className="card">No questions yet. Click “Generate questions”.</div>}
@@ -123,15 +127,15 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
     <Paper p={p} formats={formats} />,
     <div className="card">
       <label className="chip"><input type="checkbox" checked={p.key} onChange={() => set({ key: !p.key })} />Include answer key</label>
-      <div className="acts"><button className="primary" onClick={docx}>⬇ Download DOCX</button><button onClick={() => { window.print(); saveP('Completed'); setDone(true) }}>🖨 Download PDF (print)</button></div>
-      {done && <div className="ok">✅ Export generated successfully. Saved in My Papers.</div>}</div>
+      <div className="acts"><button className="primary" onClick={docx}>Download DOCX</button><button onClick={() => { window.print(); saveP('Completed'); setDone(true) }}>Download PDF (print)</button></div>
+      {done && <div className="ok">Export generated successfully. Saved in My Papers.</div>}</div>
   ][step]
   return <section>
-    <ol className="steps">{STEPS.map((t, i) => <li key={t}><button disabled={i > step && !valid} className={i === step ? 'on' : i < step ? 'done' : ''} onClick={() => setStep(i)}>{i < step ? '✓' : i + 1} {t}</button></li>)}</ol>
+    <ol className="steps">{STEPS.map((t, i) => <li key={t}><button disabled={i > step && !valid} className={i === step ? 'on' : i < step ? 'done' : ''} onClick={() => setStep(i)}>{i < step ? <Ic n="check" s={14} /> : i + 1} {t}</button></li>)}</ol>
     <h2>{STEPS[step]}</h2>{V}
-    <footer><button disabled={!step} onClick={() => setStep(step - 1)}>← Back</button><button onClick={() => saveP('Draft')}>💾 Save draft</button>
+    <footer><button disabled={!step} onClick={() => setStep(step - 1)}>← Back</button><button onClick={() => saveP('Draft')}>Save draft</button>
       <button className="primary" disabled={!valid || step === 9} onClick={() => setStep(step + 1)}>Continue →</button></footer>
-    {!valid && <p className="err">⚠ Please complete this step to continue.</p>}</section>
+    {!valid && <p className="err">Please complete this step to continue.</p>}</section>
 }
 
 function QBank({ init, favs, tf, add }) {
@@ -145,8 +149,8 @@ function QBank({ init, favs, tf, add }) {
       <button disabled={!sel.length} onClick={() => { sel.forEach((id) => add(BANK.find((b) => b.id === id))); setSel([]) }}>Add selected ({sel.length})</button></div>
     {!L.length && <div className="card">No questions match. Try clearing filters.</div>}
     {L.map((q) => <div key={q.id} className="card"><div className="row wrap"><label><input type="checkbox" aria-label="Select" checked={sel.includes(q.id)} onChange={() => setSel(sel.includes(q.id) ? sel.filter((x) => x !== q.id) : [...sel, q.id])} /> <M t={q.text} /></label>
-      <span className="acts"><button onClick={() => tf(q.id)} aria-label="Favorite">{favs.includes(q.id) ? '★' : '☆'}</button><button onClick={() => setPv(q)}>Preview</button><button onClick={() => add(q, true)}>Customize</button><button className="primary" onClick={() => add(q)}>Add to paper</button></span></div>
-      <small>{q.sub} › {q.ch} · {q.type} · {q.diff} · {q.marks}m · 📚 Question Bank</small></div>)}
+      <span className="acts"><button onClick={() => tf(q.id)} aria-label="Favorite"><Ic n="star" f={favs.includes(q.id)} /></button><button onClick={() => setPv(q)}>Preview</button><button onClick={() => add(q, true)}>Customize</button><button className="primary" onClick={() => add(q)}>Add to paper</button></span></div>
+      <small>{q.sub} › {q.ch} · {q.type} · {q.diff} · {q.marks}m · Question Bank</small></div>)}
     {pv && <Modal title="Question preview" onClose={() => setPv(null)}><p><M t={pv.text} /></p>{pv.diagram && <Diagram />}<p>Answer: <M t={pv.ans} /></p></Modal>}</section>
 }
 
@@ -154,7 +158,7 @@ function Tpls({ favT, tfT, formats, setFormats, use, toast, ask }) {
   const [q, setQ] = useState(''), [c, setC] = useState('All'), [pv, setPv] = useState(null), [up, setUp] = useState(null)
   const onFile = (f) => {
     if (!f) return
-    if (!/\.(docx|pdf)$/i.test(f.name)) return toast('❌ Unsupported file. Please upload a DOCX or PDF.')
+    if (!/\.(docx|pdf)$/i.test(f.name)) return toast('Unsupported file. Please upload a DOCX or PDF.')
     setUp({ name: f.name, pct: 0 }); let v = 0
     const t = setInterval(() => { v += 25; setUp((u) => ({ ...u, pct: v })); if (v >= 100) { clearInterval(t); setUp((u) => ({ ...u, done: true, F: { school: 'Sunrise Public School', title: 'Annual Examination', year: '2026-27', duration: '3 Hours', marks: '80' } })) } }, 400)
   }
@@ -163,7 +167,7 @@ function Tpls({ favT, tfT, formats, setFormats, use, toast, ask }) {
     <div className="card drop" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); onFile(e.dataTransfer.files[0]) }}>
       <p><b>Upload My Format</b> — drag and drop a DOCX or PDF here</p><label className="btn">Browse files<input hidden type="file" accept=".docx,.pdf" onChange={(e) => onFile(e.target.files[0])} /></label>
       {up && !up.done && <div className="bar"><div style={{ width: up.pct + '%' }} /></div>}
-      {up && up.done && <div className="form"><p>✅ Processed <b>{up.name}</b> (demo detection). <Badge c="warn">⚠ 1 unsupported element: watermark</Badge></p>
+      {up && up.done && <div className="form"><p>Processed <b>{up.name}</b> (demo detection). <Badge c="warn">1 unsupported element: watermark</Badge></p>
         {Object.entries({ school: 'School name', title: 'Exam title', year: 'Academic year', duration: 'Duration', marks: 'Total marks' }).map(([k, l]) => <label key={k}>{l} <Badge c={k === 'year' ? 'warn' : 'bk'}>{k === 'year' ? 'Please confirm' : 'Detected'}</Badge><input value={up.F[k]} onChange={(e) => setUp({ ...up, F: { ...up.F, [k]: e.target.value } })} /></label>)}
         <button className="primary" onClick={() => { setFormats([{ id: uid(), name: up.name.replace(/\.\w+$/, ''), school: up.F.school, last: today() }, ...formats]); setUp(null); toast('Format saved') }}>Save format</button></div>}</div>
     <h3>My Formats</h3>{!formats.length && <div className="card">No formats yet. Upload one above.</div>}
@@ -176,7 +180,7 @@ function Tpls({ favT, tfT, formats, setFormats, use, toast, ask }) {
     <h3>Built-in templates</h3><div className="row wrap"><input placeholder="Search templates…" aria-label="Search templates" value={q} onChange={(e) => setQ(e.target.value)} />
       <select aria-label="Category" value={c} onChange={(e) => setC(e.target.value)}>{CATS.map((x) => <option key={x}>{x}</option>)}</select></div>
     {c === 'My Uploaded Formats' ? <p>See “My Formats” above.</p> : <div className="grid">{T.map((t) => <div key={t.id} className="card"><Thumb s={t.id === 't2' ? 'c' : ''} /><b>{t.name}</b><small>{t.cat} · Built-in</small>
-      <div className="acts"><button onClick={() => tfT(t.id)} aria-label="Favorite">{favT.includes(t.id) ? '★' : '☆'}</button><button onClick={() => setPv(t)}>Preview</button><button className="primary" onClick={() => use(t.id)}>Use template</button></div></div>)}</div>}
+      <div className="acts"><button onClick={() => tfT(t.id)} aria-label="Favorite"><Ic n="star" f={favT.includes(t.id)} /></button><button onClick={() => setPv(t)}>Preview</button><button className="primary" onClick={() => use(t.id)}>Use template</button></div></div>)}</div>}
     {pv && <Modal title={pv.name} onClose={() => setPv(null)}><Thumb s="big" /><p>Preview (dummy thumbnail)</p></Modal>}</section>
 }
 
@@ -186,7 +190,7 @@ function Papers({ papers, setPapers, open, ask, toast }) {
   return <section><h2>My Papers</h2>
     <div className="tabs">{['All', 'Recent', 'Drafts', 'Completed', 'Archived'].map((t) => <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{t}</button>)}</div>
     <input placeholder="Search papers…" aria-label="Search papers" value={q} onChange={(e) => setQ(e.target.value)} />
-    {!L.length && <div className="card">📄 No papers here yet.</div>}
+    {!L.length && <div className="card">No papers here yet.</div>}
     <div className="grid">{L.map((p) => <div key={p.id} className="card"><Thumb /><b>{p.name}</b><small>{p.subject} · {p.std} · {p.date}</small><Badge c={p.status === 'Draft' ? 'warn' : 'bk'}>{p.status}</Badge>
       <div className="acts"><button className="primary" onClick={() => open(p)}>{p.status === 'Draft' ? 'Resume' : 'Open'}</button>
         <button onClick={() => setPapers([{ ...p, id: uid(), name: p.name + ' (copy)', status: 'Draft' }, ...papers])}>Duplicate</button><button onClick={() => toast('Download started (dummy)')}>Download</button>
@@ -201,14 +205,14 @@ function Subj() {
     <select aria-label="Board" value={b} onChange={(e) => { setB(e.target.value); setS(Object.keys(CUR[e.target.value])[0]); setSb(null) }}>{Object.keys(CUR).map((x) => <option key={x}>{x}</option>)}</select>
     <select aria-label="Standard" value={s} onChange={(e) => { setS(e.target.value); setSb(null) }}>{Object.keys(CUR[b]).map((x) => <option key={x}>{x}</option>)}</select>
     <input placeholder="Search chapters…" aria-label="Search" value={q} onChange={(e) => setQ(e.target.value)} /></div>
-    {!Object.keys(D).length && <div className="card">⚠ Content for {b} {s} is not configured yet (demo).</div>}
+    {!Object.keys(D).length && <div className="card">Content for {b} {s} is not configured yet (demo).</div>}
     <div className="grid">{Object.keys(D).map((x) => <button key={x} className={'card pick' + (sb === x ? ' on' : '')} onClick={() => setSb(x)}>{x}</button>)}</div>
     {sb && Object.keys(D[sb]).filter((c) => c.toLowerCase().includes(q.toLowerCase())).map((c) => <details key={c} className="card"><summary>{c} <small>{BANK.filter((x) => x.ch === c).length} questions</small></summary>{D[sb][c].map((t) => <div key={t} className="sub">• {t}</div>)}</details>)}</section>
 }
 
 function Form({ title, fields, toast }) {
   return <section><h2>{title}</h2><div className="card form">{fields.map(([l, v, t]) => <label key={l} className={t === 'cb' ? 'chip' : ''}>{t === 'cb' ? <><input type="checkbox" defaultChecked={v} />{l}</> : <>{l}<input defaultValue={v} /></>}</label>)}
-    <button className="primary" onClick={() => toast('✅ Saved')}>Save changes</button></div></section>
+    <button className="primary" onClick={() => toast('Saved')}>Save changes</button></div></section>
 }
 
 export default function App() {
@@ -219,7 +223,7 @@ export default function App() {
   const ask = (msg, ok) => setDlg({ msg, ok })
   const go = (pg) => { setPage(pg); setNav(false) }
   const start = (o = {}) => { setP({ ...blank, ...o }); setStep(0); go('Generate Paper') }
-  const saveP = (status) => { const id = p.id || uid(), np = { ...p, id, status, date: today() }; setP(np); setPapers((ps) => [np, ...ps.filter((x) => x.id !== id)]); toast(status === 'Draft' ? '💾 Draft saved' : '✅ Saved to My Papers') }
+  const saveP = (status) => { const id = p.id || uid(), np = { ...p, id, status, date: today() }; setP(np); setPapers((ps) => [np, ...ps.filter((x) => x.id !== id)]); toast(status === 'Draft' ? 'Draft saved' : 'Saved to My Papers') }
   const openP = (x) => { setP({ ...blank, ...x }); setStep(6); go('Generate Paper') }
   const addQ = (q, c) => { setP((x) => ({ ...x, qs: [...x.qs, { ...q, uid: uid(), src: c ? 'Bank (customized)' : 'Question Bank' }] })); toast('Added to current paper') }
   const tf = (a, s, v) => s(a.includes(v) ? a.filter((x) => x !== v) : [...a, v])
@@ -228,18 +232,18 @@ export default function App() {
   const PC = ({ x }) => <button className="card pick" onClick={() => openP(x)}><Thumb /><b>{x.name}</b><small>{x.subject} · {x.std} · {x.date} · {x.status}</small></button>
 
   return <div className="app">
-    <aside className={(nav ? 'open ' : '') + (col ? 'col' : '')}><h1>{col ? 'E' : 'EduPaper AI'}</h1>
-      {NAV.map(([t, ic]) => <button key={t} className={'nav' + (page === t ? ' on' : '')} onClick={() => go(t)} title={t}>{ic} {!col && t}</button>)}
+    <aside className={(nav ? 'open ' : '') + (col ? 'col' : '')}><div className="brand"><img src={col ? mark : logo} alt="EduPaper AI" /></div>
+      {NAV.map(([t, ic]) => <button key={t} className={'nav' + (page === t ? ' on' : '')} onClick={() => go(t)} title={t}><Ic n={ic} />{!col && <span>{t}</span>}</button>)}
       <button className="nav" onClick={() => setCol(!col)}>{col ? '»' : '« Collapse'}</button></aside>
     <main>
-      <header><button className="menu" onClick={() => setNav(!nav)} aria-label="Menu">☰</button><small className="crumb">Home / {page}</small>
+      <header><button className="menu" onClick={() => setNav(!nav)} aria-label="Menu"><Ic n="menu" /></button><small className="crumb">Home / {page}</small>
         <input placeholder="Search questions…" aria-label="Global search" value={gq} onChange={(e) => setGq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && go('Question Bank')} />
-        <button aria-label="Notifications" onClick={() => setInfo('n')}>🔔</button><button aria-label="Help" onClick={() => setInfo('h')}>❓</button><button aria-label="Profile" onClick={() => go('Profile')}>🧑‍🏫</button>
-        <button className="primary" onClick={() => start()}>+ Create Paper</button></header>
-      {page === 'Dashboard' && <section><h2>Good morning! Ready to create your next question paper?</h2><p>Pick a board, choose chapters and export a print-ready paper in minutes.</p>
-        <button className="primary big" onClick={() => start()}>Generate New Paper</button>
-        <div className="grid sp"><button className="card pick" onClick={() => start()}>✨ Generate New Paper<small>AI + question bank</small></button><button className="card pick" onClick={() => go('Templates & My Formats')}>⬆ Upload My Format<small>Reuse your school format</small></button>
-          <button className="card pick" onClick={() => start({ board: 'GSEB', std: 'Std 10', subject: 'Mathematics' })}>∑ Create Maths & Science Paper<small>Equations, formulas, diagrams</small></button></div>
+        <button aria-label="Notifications" onClick={() => setInfo('n')}><Ic n="bell" /></button><button aria-label="Help" onClick={() => setInfo('h')}><Ic n="help" /></button><button aria-label="Profile" onClick={() => go('Profile')}><Ic n="user" /></button>
+        <button className="primary" onClick={() => start()}><Ic n="plus" /> Create Paper</button></header>
+      {page === 'Dashboard' && <section><div className="hero"><div><h2>Good morning! Ready to create your next question paper?</h2><p>Pick a board, choose chapters and export a print-ready paper in minutes.</p><button className="cta" onClick={() => start()}><Ic n="sparkles" /> Generate New Paper</button></div><img className="hm" src={mark} alt="" /></div>
+        
+        <div className="grid sp"><button className="card pick" onClick={() => start()}><span className="ci"><Ic n="sparkles" s={22} /></span>Generate New Paper<small>AI + question bank</small></button><button className="card pick" onClick={() => go('Templates & My Formats')}><span className="ci"><Ic n="upload" s={22} /></span>Upload My Format<small>Reuse your school format</small></button>
+          <button className="card pick" onClick={() => start({ board: 'GSEB', std: 'Std 10', subject: 'Mathematics' })}><span className="ci"><Ic n="sigma" s={22} /></span>Create Maths & Science Paper<small>Equations, formulas, diagrams</small></button></div>
         <div className="grid sp">{[['Total papers', papers.length], ['Saved drafts', drafts.length], ['Recent papers', papers.filter((x) => x.date >= '2026-10-01').length], ['Favorite templates', favT.length]].map(([l, v]) => <div key={l} className="card stat"><b>{v}</b><small>{l}</small></div>)}</div>
         <h3>Continue working</h3>{drafts.length ? <div className="grid">{drafts.map((x) => <PC key={x.id} x={x} />)}</div> : <div className="card">No drafts. Start a new paper!</div>}
         <h3>Recent papers</h3><div className="grid">{papers.slice(0, 3).map((x) => <PC key={x.id} x={x} />)}</div>
