@@ -14,8 +14,8 @@ jobs:
       - run: npx cap add android && npx cap sync android
       - name: Apply app icon + splash
         run: |
-          cp -r resources/android/res/. android/app/src/main/res/
-          find android/app/src/main/res -name 'splash.png' -exec cp resources/android/splash.png {} \;
+          cp -r resources/brand/res/. android/app/src/main/res/
+          find android/app/src/main/res -name 'splash.png' -exec cp resources/brand/splash.png {} \;
           printf '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n  <color name="ic_launcher_background">#FFFFFF</color>\n</resources>\n' > android/app/src/main/res/values/ic_launcher_background.xml
       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
