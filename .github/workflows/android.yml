@@ -15,7 +15,10 @@ jobs:
       - name: Apply app icon + splash
         run: |
           cp -r resources/brand/res/. android/app/src/main/res/
-          find android/app/src/main/res -name 'splash.png' -exec cp resources/brand/splash.png {} \;
+          find android/app/src/main/res -name 'splash.png' -delete
+          mkdir -p android/app/src/main/res/drawable android/app/src/main/res/drawable-night
+          cp resources/brand/splash.png android/app/src/main/res/drawable/splash.png
+          cp resources/brand/splash-dark.png android/app/src/main/res/drawable-night/splash.png
           printf '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n  <color name="ic_launcher_background">#FFFFFF</color>\n</resources>\n' > android/app/src/main/res/values/ic_launcher_background.xml
       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4

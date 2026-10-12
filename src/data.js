@@ -53,3 +53,28 @@ export const PAPERS0 = [
   P('p4', 'Trigonometry Practice', 'CBSE', 'Class 10', 'Mathematics', ['Trigonometry'], '2026-09-20', 'Draft'),
   P('p5', 'Old Practice Set', 'CBSE', 'Class 10', 'Science', ['Life Processes'], '2026-08-12', 'Archived')
 ]
+
+export const SUBJECTS = ['Mathematics', 'Science', 'Physics', 'Chemistry']
+export const EXAMS0 = [
+  { id: 'e1', title: 'Unit Test 1 - Maths', subject: 'Mathematics', std: 'Std 10', date: '2026-10-15', time: '09:00', paper: 'p1' },
+  { id: 'e2', title: 'Physics Weekly Test', subject: 'Physics', std: 'Std 12', date: '2026-10-20', time: '11:30', paper: 'p3' },
+  { id: 'e3', title: 'Mid-term Science', subject: 'Science', std: 'Std 10', date: '2026-10-28', time: '08:30', paper: '' }
+]
+export const BLUEPRINTS0 = [
+  { id: 'b1', name: 'GSEB Std 10 Maths - 80 marks', board: 'GSEB', std: 'Std 10', subject: 'Mathematics', rows: [{ type: 'MCQ', n: 20, m: 1 }, { type: 'Very Short', n: 6, m: 2 }, { type: 'Short', n: 4, m: 3 }, { type: 'Long', n: 9, m: 4 }], diff: { Easy: 40, Medium: 40, Hard: 20 } },
+  { id: 'b2', name: 'Unit Test - 25 marks', board: '', std: '', subject: '', rows: [{ type: 'MCQ', n: 5, m: 1 }, { type: 'Short', n: 5, m: 2 }, { type: 'Long', n: 2, m: 5 }], diff: { Easy: 50, Medium: 35, Hard: 15 } }
+]
+export const NOTIFS0 = [
+  { id: 'n1', title: 'Draft waiting', body: 'Your draft "Unit Test 1 - Maths" is not finished yet.', time: 'Today', read: false },
+  { id: 'n2', title: 'Exam coming up', body: 'Unit Test 1 - Maths is scheduled for 15 Oct. Export the paper in advance.', time: 'Today', read: false },
+  { id: 'n3', title: 'New templates added', body: '2 new templates are available: Board Style Mock and Coaching Weekly Test.', time: 'Yesterday', read: false },
+  { id: 'n4', title: 'Tip: review AI questions', body: 'Questions marked "Needs review" should be checked before you export.', time: '3 days ago', read: true }
+]
+export const FAQ = [
+  ['How do I create a question paper?', 'Tap Create, pick board, class, subject and chapters, set marks and question types, generate questions, choose a format and export.'],
+  ['Can I use my own school format?', 'Yes. Go to Templates & My Formats, upload a DOCX or PDF, confirm the detected fields and save it. You can then pick it in the Format step.'],
+  ['What is a blueprint?', 'A blueprint stores your marks distribution (how many MCQs, short and long questions, and difficulty split) so you can reuse it for every test.'],
+  ['Are AI-generated questions checked?', 'AI questions are flagged "Needs review". Always read them and fix the answer before exporting.'],
+  ['How do I export to Word or PDF?', 'In the last step choose Download DOCX or Download PDF. PDF uses your device print dialog - choose "Save as PDF".'],
+  ['Can I change the app theme?', 'Settings > Appearance. Choose System to follow your phone, or force Light or Dark.']
+]

@@ -1,27 +1,22 @@
 import { useState, useEffect } from 'react'
-import Splash from './Splash.jsx'
 import katex from 'katex'
 import 'katex/contrib/mhchem'
+import { Capacitor } from '@capacitor/core'
+import { StatusBar, Style } from '@capacitor/status-bar'
 import { Document, Packer, Paragraph, TextRun } from 'docx'
 import logo from './assets/logo-full.png'
 import mark from './assets/mark.png'
-import { CUR, BANK, TEMPLATES, CATS, MEDIA, TYPES, AI_TXT, FORMATS0, PAPERS0 } from './data.js'
-
-const NAV = [['Dashboard', 'home'], ['Generate Paper', 'sparkles'], ['Question Bank', 'book'], ['Templates & My Formats', 'layout'], ['My Papers', 'file'], ['Subjects & Chapters', 'list'], ['Profile', 'user'], ['Settings', 'sliders']]
-const I = { home: 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', sparkles: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z', book: 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 1 2-2h13', layout: 'M3 4h18v6H3zM3 14h8v6H3zM15 14h6v6h-6z', file: 'M6 2h8l5 5v15H6zM14 2v5h5', list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01', user: 'M20 21a8 8 0 0 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8', sliders: 'M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4', bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4', help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01', up: 'M12 19V5M5 12l7-7 7 7', down: 'M12 5v14M19 12l-7 7-7-7', x: 'M18 6L6 18M6 6l12 12', star: 'M12 2l3 7 7 .6-5.3 4.7 1.6 7.2-6.3-3.7-6.3 3.7 1.6-7.2L2 9.6 9 9z', check: 'M20 6L9 17l-5-5', menu: 'M3 6h18M3 12h18M3 18h18', plus: 'M12 5v14M5 12h14', upload: 'M12 16V4M6 10l6-6 6 6M4 20h16', sigma: 'M18 5H6l7 7-7 7h12', right: 'M9 6l6 6-6 6' }
-const Ic = ({ n, f, s = 18 }) => <svg width={s} height={s} viewBox="0 0 24 24" fill={f ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={I[n]} /></svg>
-const STEPS = ['Board', 'Standard', 'Subject', 'Chapters', 'Details', 'Source', 'Questions', 'Format', 'Preview', 'Export']
-const today = () => new Date().toISOString().slice(0, 10)
+import Splash from './Splash.jsx'
+import { Ic, Modal, Badge, Thumb, M, Diagram, today } from './ui.jsx'
+import { Planner, ExamCard, Blueprints, Insights, Favorites, Notifications, Help, SettingsPage, More, Onboarding, NewQuestion } from './pages.jsx'
+import { CUR, BANK, TEMPLATES, CATS, MEDIA, TYPES, AI_TXT, FORMATS0, PAPERS0, EXAMS0, BLUEPRINTS0, NOTIFS0 } from './data.js'
 let n = 100
-const uid = () => 'u' + ++n
+const uid = () => 'u' + Date.now().toString(36) + ++n
+
+const STEPS = ['Board', 'Standard', 'Subject', 'Chapters', 'Details', 'Source', 'Questions', 'Format', 'Preview', 'Export']
 const blank = { board: '', std: '', medium: 'English', subject: '', chapters: [], name: 'Unit Test 1', marks: 25, mins: 60, diff: 'Medium', nq: 8, types: ['MCQ', 'Short', 'Long'], neg: false, instr: 'All questions are compulsory.', source: 'Both', qs: [], tpl: 't1', key: true, id: null, status: 'Draft' }
 const plain = (t = '') => t.replace(/\$/g, '').replace(/\\ce\{([^}]*)\}/g, '$1')
 
-const M = ({ t }) => <span dangerouslySetInnerHTML={{ __html: String(t).replace(/\$(.+?)\$/g, (_, m) => katex.renderToString(m, { throwOnError: false })) }} />
-const Diagram = () => <svg viewBox="0 0 200 80" width="200" role="img" aria-label="Dummy diagram"><rect x="1" y="1" width="198" height="78" rx="8" fill="#EEF0FF" stroke="#4F46E5" /><circle cx="60" cy="38" r="22" fill="none" stroke="#4F46E5" /><path d="M90 38h80M160 30l10 8-10 8" stroke="#7C3AED" fill="none" /><text x="100" y="74" fontSize="9" textAnchor="middle">Dummy diagram</text></svg>
-const Thumb = ({ s = '' }) => <div className={'thumb ' + s}><b /><u /><u /><u /><u /></div>
-const Modal = ({ title, onClose, children }) => <div className="ov" role="dialog" aria-label={title}><div className="card modal"><div className="row"><h3>{title}</h3><button onClick={onClose} aria-label="Close"><Ic n="x" /></button></div>{children}</div></div>
-const Badge = ({ c = '', children }) => <i className={'bd ' + c}>{children}</i>
 
 function Eq({ onApply, onClose }) {
   const [v, setV] = useState('\\frac{a}{b}+\\sqrt{x^2+1}')
@@ -139,19 +134,20 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
     {!valid && <p className="err">Please complete this step to continue.</p>}</section>
 }
 
-function QBank({ init, favs, tf, add }) {
-  const [s, setS] = useState(init || ''), [f, setF] = useState({}), [fv, setFv] = useState(false), [sel, setSel] = useState([]), [pv, setPv] = useState(null)
+function QBank({ init, favs, tf, add, mine }) {
+  const [mkq, setMkq] = useState(false), [s, setS] = useState(init || ''), [f, setF] = useState({}), [fv, setFv] = useState(false), [sel, setSel] = useState([]), [pv, setPv] = useState(null)
   const L = BANK.filter((q) => (!s || (q.text + q.ch + q.sub).toLowerCase().includes(s.toLowerCase())) && (!f.ty || q.type === f.ty) && (!f.df || q.diff === f.df) && (!f.mk || q.marks === +f.mk) && (!f.sb || q.sub === f.sb) && (!fv || favs.includes(q.id)))
   const Sel = ({ k, o, l }) => <select aria-label={l} value={f[k] || ''} onChange={(e) => setF({ ...f, [k]: e.target.value })}><option value="">{l}</option>{o.map((x) => <option key={x}>{x}</option>)}</select>
   return <section><h2>Question Bank <small>(dummy content)</small></h2>
     <div className="row wrap"><input placeholder="Search questions…" value={s} onChange={(e) => setS(e.target.value)} aria-label="Search" />
       <Sel k="sb" l="Subject" o={['Mathematics', 'Science', 'Physics', 'Chemistry']} /><Sel k="ty" l="Type" o={TYPES} /><Sel k="df" l="Difficulty" o={['Easy', 'Medium', 'Hard']} /><Sel k="mk" l="Marks" o={['1', '2', '3', '4']} />
       <label className="chip"><input type="checkbox" checked={fv} onChange={() => setFv(!fv)} />Favorites</label>
-      <button disabled={!sel.length} onClick={() => { sel.forEach((id) => add(BANK.find((b) => b.id === id))); setSel([]) }}>Add selected ({sel.length})</button></div>
+      <button className="primary" onClick={() => setMkq(true)}><Ic n="plus" s={16} /> New question</button><button disabled={!sel.length} onClick={() => { sel.forEach((id) => add(BANK.find((b) => b.id === id))); setSel([]) }}>Add selected ({sel.length})</button></div>
     {!L.length && <div className="card">No questions match. Try clearing filters.</div>}
     {L.map((q) => <div key={q.id} className="card"><div className="row wrap"><label><input type="checkbox" aria-label="Select" checked={sel.includes(q.id)} onChange={() => setSel(sel.includes(q.id) ? sel.filter((x) => x !== q.id) : [...sel, q.id])} /> <M t={q.text} /></label>
       <span className="acts"><button onClick={() => tf(q.id)} aria-label="Favorite"><Ic n="star" f={favs.includes(q.id)} /></button><button onClick={() => setPv(q)}>Preview</button><button onClick={() => add(q, true)}>Customize</button><button className="primary" onClick={() => add(q)}>Add to paper</button></span></div>
       <small>{q.sub} › {q.ch} · {q.type} · {q.diff} · {q.marks}m · Question Bank</small></div>)}
+    {mkq && <NewQuestion onClose={() => setMkq(false)} onSave={(q) => { mine(q); setMkq(false) }} />}
     {pv && <Modal title="Question preview" onClose={() => setPv(null)}><p><M t={pv.text} /></p>{pv.diagram && <Diagram />}<p>Answer: <M t={pv.ans} /></p></Modal>}</section>
 }
 
@@ -216,66 +212,115 @@ function Form({ title, fields, toast }) {
     <button className="primary" onClick={() => toast('Saved')}>Save changes</button></div></section>
 }
 
+const NAV = [
+  ['Create', [['Dashboard', 'home'], ['Generate Paper', 'sparkles'], ['Question Bank', 'book'], ['Templates & My Formats', 'layout']]],
+  ['Manage', [['My Papers', 'file'], ['Exam Planner', 'calendar'], ['Blueprints', 'target'], ['Insights', 'chart']]],
+  ['Library', [['Subjects & Chapters', 'list'], ['Favorites', 'star']]],
+  ['Account', [['Profile', 'user'], ['Notifications', 'bell'], ['Settings', 'sliders'], ['Help & Support', 'help']]]
+]
+const TABS = [['Dashboard', 'home', 'Home'], ['Question Bank', 'book', 'Bank'], ['Generate Paper', 'sparkles', 'Create'], ['My Papers', 'file', 'Papers'], ['More', 'grid', 'More']]
+const TABP = TABS.map((t) => t[0])
+const read = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d } catch { return d } }
+function usePersist(k, d) {
+  const [v, setV] = useState(() => read(k, d))
+  useEffect(() => { try { localStorage.setItem(k, JSON.stringify(v)) } catch { /* storage unavailable */ } }, [k, v])
+  return [v, setV]
+}
+
 export default function App() {
-  const [page, setPage] = useState('Dashboard'), [nav, setNav] = useState(false), [col, setCol] = useState(false), [step, setStep] = useState(0), [p, setP] = useState(blank)
-  const [papers, setPapers] = useState(PAPERS0), [formats, setFormats] = useState(FORMATS0), [favT, setFavT] = useState(['t1', 't6']), [favQ, setFavQ] = useState([])
-  const [splash, setSplash] = useState(true), [tm, setTm] = useState(''), [dlg, setDlg] = useState(null), [info, setInfo] = useState(null), [gq, setGq] = useState('')
+  const [page, setPage] = useState('Dashboard'), [col, setCol] = useState(false), [step, setStep] = useState(0), [p, setP] = useState(blank)
+  const [papers, setPapers] = usePersist('ep_papers', PAPERS0), [formats, setFormats] = usePersist('ep_formats', FORMATS0)
+  const [favT, setFavT] = usePersist('ep_favT', ['t1', 't6']), [favQ, setFavQ] = usePersist('ep_favQ', [])
+  const [exams, setExams] = usePersist('ep_exams', EXAMS0), [bps, setBps] = usePersist('ep_bps', BLUEPRINTS0), [notifs, setNotifs] = usePersist('ep_notifs', NOTIFS0)
+  const [prefs, setPrefs] = usePersist('ep_prefs', { key: true, notif: true, medium: 'English' }), [theme, setTheme] = usePersist('ep_theme', 'system'), [seen, setSeen] = usePersist('ep_onb', false)
+  const [custom, setCustom] = useState(() => { const c = read('ep_custom', []); c.forEach((q) => { if (!BANK.some((b) => b.id === q.id)) BANK.push(q) }); return c })
+  const [splash, setSplash] = useState(true), [tm, setTm] = useState(''), [dlg, setDlg] = useState(null), [gq, setGq] = useState('')
+
+  // theme: follow the phone unless the teacher forces light/dark
+  useEffect(() => {
+    const r = document.documentElement, mq = window.matchMedia('(prefers-color-scheme: dark)')
+    theme === 'system' ? r.removeAttribute('data-theme') : r.setAttribute('data-theme', theme)
+    const apply = () => {
+      const dark = theme === 'dark' || (theme === 'system' && mq.matches), c = dark ? '#0B1020' : '#F5F6FA'
+      const meta = document.querySelector('meta[name=theme-color]'); if (meta) meta.setAttribute('content', c)
+      if (Capacitor.isNativePlatform()) { StatusBar.setStyle({ style: dark ? Style.Dark : Style.Light }).catch(() => {}); StatusBar.setBackgroundColor({ color: c }).catch(() => {}) }
+    }
+    apply(); mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [theme])
+  useEffect(() => { window.scrollTo({ top: 0 }) }, [page])
+
   const toast = (m) => { setTm(m); setTimeout(() => setTm(''), 2600) }
   const ask = (msg, ok) => setDlg({ msg, ok })
-  const go = (pg) => { setPage(pg); setNav(false) }
-  const start = (o = {}) => { setP({ ...blank, ...o }); setStep(0); go('Generate Paper') }
+  const go = (pg) => setPage(pg)
+  const start = (o = {}, st = 0) => { setP({ ...blank, key: prefs.key, medium: prefs.medium, ...o }); setStep(st); go('Generate Paper') }
   const saveP = (status) => { const id = p.id || uid(), np = { ...p, id, status, date: today() }; setP(np); setPapers((ps) => [np, ...ps.filter((x) => x.id !== id)]); toast(status === 'Draft' ? 'Draft saved' : 'Saved to My Papers') }
   const openP = (x) => { setP({ ...blank, ...x }); setStep(6); go('Generate Paper') }
-  const addQ = (q, c) => { setP((x) => ({ ...x, qs: [...x.qs, { ...q, uid: uid(), src: c ? 'Bank (customized)' : 'Question Bank' }] })); toast('Added to current paper') }
+  const addQ = (q, c) => { setP((x) => ({ ...x, qs: [...x.qs, { ...q, uid: uid(), src: c ? 'Bank (customized)' : q.src || 'Question Bank' }] })); toast('Added to current paper') }
+  const addCustom = (q) => { const x = { ...q, id: Date.now(), src: 'My Question' }; BANK.push(x); const c = [...custom, x]; setCustom(c); try { localStorage.setItem('ep_custom', JSON.stringify(c)) } catch { /* ignore */ } toast('Question saved to your bank') }
   const tf = (a, s, v) => s(a.includes(v) ? a.filter((x) => x !== v) : [...a, v])
   const useT = (id) => { setP({ ...p, tpl: id }); setStep(7); go('Generate Paper'); toast('Template selected') }
-  const drafts = papers.filter((x) => x.status === 'Draft')
+  const useBp = (b) => { const full = b.board && b.std && b.subject; start({ name: b.name, marks: b.rows.reduce((a, r) => a + r.n * r.m, 0), nq: b.rows.reduce((a, r) => a + r.n, 0), types: [...new Set(b.rows.map((r) => r.type))], board: b.board, std: b.std, subject: b.subject, diff: 'Mixed' }, full ? 3 : 0); toast('Blueprint applied') }
+  const signOut = () => ask('Sign out of EduPaper AI?', () => { setSeen(false); go('Dashboard') })
+  const drafts = papers.filter((x) => x.status === 'Draft'), unread = notifs.filter((x) => !x.read).length
+  const upcoming = exams.filter((e) => e.date >= today()).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).slice(0, 3)
+  const hr = new Date().getHours(), greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening'
+  const flow = page === 'Generate Paper', sub = !TABP.includes(page)
   const PC = ({ x }) => <button className="card pick" onClick={() => openP(x)}><Thumb /><b>{x.name}</b><small>{x.subject} · {x.std} · {x.date} · {x.status}</small></button>
 
-  const hr = new Date().getHours(), greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening'
-  const TABS = [['Dashboard', 'home', 'Home'], ['Question Bank', 'book', 'Bank'], ['Generate Paper', 'sparkles', 'Create'], ['My Papers', 'file', 'Papers'], ['Profile', 'user', 'Profile']]
-  useEffect(() => { window.scrollTo({ top: 0 }) }, [page])
-  return <div className={'app' + (page === 'Generate Paper' ? ' flow' : '')}>
+  return <div className={'app' + (flow ? ' flow' : '')}>
     {splash && <Splash onDone={() => setSplash(false)} />}
-    {nav && <div className="scrim" onClick={() => setNav(false)} />}
-    <aside className={(nav ? 'open ' : '') + (col ? 'col' : '')}><div className="brand"><img src={col ? mark : logo} alt="EduPaper AI" /></div>
-      {NAV.map(([t, ic]) => <button key={t} className={'nav' + (page === t ? ' on' : '')} onClick={() => go(t)} title={t}><Ic n={ic} />{!col && <span>{t}</span>}</button>)}
-      <button className="nav" onClick={() => setCol(!col)}>{col ? '»' : '« Collapse'}</button></aside>
+    {!splash && !seen && <Onboarding onDone={() => setSeen(true)} />}
+    <aside className={col ? 'col' : ''}>
+      <div className="brand"><img className="lg full" src={logo} alt="EduPaper AI" /><img className="lg mk" src={mark} alt="EduPaper AI" /></div>
+      {NAV.map(([g, items]) => <div key={g} className="ng"><small className="ng-l">{g}</small>
+        {items.map(([t, ic]) => <button key={t} className={'nav' + (page === t ? ' on' : '')} onClick={() => go(t)} title={t}><Ic n={ic} /><span>{t}</span>{t === 'Notifications' && unread > 0 && <em className="nb">{unread}</em>}</button>)}</div>)}
+      <button className="nav collapse" onClick={() => setCol(!col)}><Ic n={col ? 'right' : 'back'} /><span>Collapse</span></button>
+    </aside>
     <main>
       <header>
-        {page === 'Generate Paper' ? <button className="mob hbtn" onClick={() => go('Dashboard')} aria-label="Close"><Ic n="x" /></button> : <img className="mob hlogo" src={mark} alt="" />}
-        <b className="mob htitle">{page === 'Generate Paper' ? 'New Paper' : page === 'Dashboard' ? 'EduPaper AI' : page}</b>
+        {flow ? <button className="mob hbtn" onClick={() => go('Dashboard')} aria-label="Close"><Ic n="x" /></button>
+          : sub ? <button className="mob hbtn" onClick={() => go('More')} aria-label="Back"><Ic n="back" /></button>
+            : <img className="mob hlogo lg" src={mark} alt="" />}
+        <b className="mob htitle">{flow ? 'New Paper' : page === 'Dashboard' ? 'EduPaper AI' : page}</b>
         <small className="desk crumb">Home / {page}</small>
         <input className="desk" placeholder="Search questions…" aria-label="Global search" value={gq} onChange={(e) => setGq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && go('Question Bank')} />
-        <button className="hbtn" aria-label="Notifications" onClick={() => setInfo('n')}><Ic n="bell" /></button>
-        <button className="hbtn desk" aria-label="Help" onClick={() => setInfo('h')}><Ic n="help" /></button>
+        <button className="hbtn" aria-label="Notifications" onClick={() => go('Notifications')}><Ic n="bell" />{unread > 0 && <i className="cnt" />}</button>
+        <button className="hbtn desk" aria-label="Help" onClick={() => go('Help & Support')}><Ic n="help" /></button>
         <button className="hbtn desk" aria-label="Profile" onClick={() => go('Profile')}><Ic n="user" /></button>
-        <button className="primary desk" onClick={() => start()}><Ic n="plus" /> Create Paper</button></header>
+        <button className="primary desk" onClick={() => start()}><Ic n="plus" /> Create Paper</button>
+      </header>
       <div key={page} className="page">
-      {page === 'Dashboard' && <section><div className="hero"><div><span className="eyebrow">{greet}, Teacher</span><h2>Ready to create your next question paper?</h2><p>Pick a board, choose chapters and export a print-ready paper in minutes.</p><button className="cta" onClick={() => start()}><Ic n="sparkles" /> Generate New Paper</button></div><img className="hm" src={mark} alt="" /></div>
-        
-        <div className="grid sp"><button className="card pick" onClick={() => start()}><span className="ci"><Ic n="sparkles" s={22} /></span>Generate New Paper<small>AI + question bank</small></button><button className="card pick" onClick={() => go('Templates & My Formats')}><span className="ci"><Ic n="upload" s={22} /></span>Upload My Format<small>Reuse your school format</small></button>
-          <button className="card pick" onClick={() => start({ board: 'GSEB', std: 'Std 10', subject: 'Mathematics' })}><span className="ci"><Ic n="sigma" s={22} /></span>Create Maths & Science Paper<small>Equations, formulas, diagrams</small></button></div>
-        <div className="grid sp">{[['Total papers', papers.length], ['Saved drafts', drafts.length], ['Recent papers', papers.filter((x) => x.date >= '2026-10-01').length], ['Favorite templates', favT.length]].map(([l, v]) => <div key={l} className="card stat"><b>{v}</b><small>{l}</small></div>)}</div>
-        <h3>Continue working</h3>{drafts.length ? <div className="grid">{drafts.map((x) => <PC key={x.id} x={x} />)}</div> : <div className="card">No drafts. Start a new paper!</div>}
-        <h3>Recent papers</h3><div className="grid">{papers.slice(0, 3).map((x) => <PC key={x.id} x={x} />)}</div>
-        <h3>My formats</h3><div className="grid">{formats.map((f) => <button key={f.id} className="card pick" onClick={() => useT(f.id)}><Thumb /><b>{f.name}</b><small>{f.school}</small></button>)}</div>
-        <h3>Favorite templates</h3><div className="grid">{TEMPLATES.filter((t) => favT.includes(t.id)).map((t) => <div key={t.id} className="card"><Thumb /><b>{t.name}</b></div>)}</div>
-        <div className="grid"><div className="card"><h3>Recent activity</h3><ul><li>Today — Edited “Unit Test 1 - Maths”</li><li>Oct 5 — Exported “Mid-term Science”</li><li>Oct 2 — Used format “DPS Annual Exam”</li></ul></div>
-          <div className="card"><h3>Getting started</h3><ol><li>Pick board, class, subject</li><li>Select chapters</li><li>Generate and edit questions</li><li>Choose format and export</li></ol></div></div></section>}
-      {page === 'Generate Paper' && <Wizard p={p} setP={setP} step={step} setStep={setStep} formats={formats} saveP={saveP} toast={toast} />}
-      {page === 'Question Bank' && <QBank key={gq} init={gq} favs={favQ} tf={(id) => tf(favQ, setFavQ, id)} add={addQ} />}
-      {page === 'Templates & My Formats' && <Tpls favT={favT} tfT={(id) => tf(favT, setFavT, id)} formats={formats} setFormats={setFormats} use={useT} toast={toast} ask={ask} />}
-      {page === 'My Papers' && <Papers papers={papers} setPapers={setPapers} open={openP} ask={ask} toast={toast} />}
-      {page === 'Subjects & Chapters' && <Subj />}
-      {page === 'Profile' && <div className="mobonly"><h2>More</h2><div className="card list">{[['Templates & My Formats', 'layout'], ['Subjects & Chapters', 'list'], ['Settings', 'sliders']].map(([t, ic]) => <button key={t} className="li" onClick={() => go(t)}><span className="ci sm"><Ic n={ic} /></span><span>{t}</span><Ic n="right" /></button>)}</div></div>}
-      {page === 'Profile' && <Form title="Profile" toast={toast} fields={[['Name', 'Teacher Name'], ['Email', 'teacher@school.in'], ['School / institute', 'Demo Public School'], ['Default board', 'GSEB'], ['Default standard', 'Std 10'], ['Preferred language', 'English']]} />}
-      {page === 'Settings' && <Form title="Settings" toast={toast} fields={[['Default paper format', 'Classic School Exam'], ['Default question language', 'English'], ['Include answer key by default', true, 'cb'], ['Email notifications', true, 'cb'], ['Export as DOCX by default', false, 'cb']]} />}
+        {page === 'Dashboard' && <section><div className="hero"><div><span className="eyebrow">{greet}, Teacher</span><h2>Ready to create your next question paper?</h2><p>Pick a board, choose chapters and export a print-ready paper in minutes.</p><button className="cta" onClick={() => start()}><Ic n="sparkles" /> Generate New Paper</button></div><img className="hm" src={mark} alt="" /></div>
+          <div className="grid sp"><button className="card pick" onClick={() => start()}><span className="ci"><Ic n="sparkles" s={22} /></span>Generate New Paper<small>AI + question bank</small></button>
+            <button className="card pick" onClick={() => go('Templates & My Formats')}><span className="ci"><Ic n="upload" s={22} /></span>Upload My Format<small>Reuse your school format</small></button>
+            <button className="card pick" onClick={() => go('Exam Planner')}><span className="ci"><Ic n="calendar" s={22} /></span>Exam Planner<small>{upcoming.length} upcoming exam{upcoming.length === 1 ? '' : 's'}</small></button>
+            <button className="card pick" onClick={() => go('Blueprints')}><span className="ci"><Ic n="target" s={22} /></span>Blueprints<small>Reuse marks distribution</small></button></div>
+          <div className="grid sp">{[['Total papers', papers.length], ['Saved drafts', drafts.length], ['Upcoming exams', upcoming.length], ['Favorite templates', favT.length]].map(([l, v]) => <div key={l} className="card stat"><b>{v}</b><small>{l}</small></div>)}</div>
+          <div className="row"><h3>Upcoming exams</h3><button className="ghost" onClick={() => go('Exam Planner')}>View planner</button></div>
+          {upcoming.length ? <div className="grid g2">{upcoming.map((e) => <ExamCard key={e.id} e={e} />)}</div> : <div className="card">No exams scheduled. Plan one in the Exam Planner.</div>}
+          <h3>Continue working</h3>{drafts.length ? <div className="grid">{drafts.map((x) => <PC key={x.id} x={x} />)}</div> : <div className="card">No drafts. Start a new paper!</div>}
+          <h3>Recent papers</h3><div className="grid">{papers.filter((x) => x.status !== 'Archived').slice(0, 3).map((x) => <PC key={x.id} x={x} />)}</div>
+          <h3>My formats</h3><div className="grid">{formats.map((f) => <button key={f.id} className="card pick" onClick={() => useT(f.id)}><Thumb /><b>{f.name}</b><small>{f.school}</small></button>)}</div>
+          <h3>Getting started</h3><div className="card"><ol className="steps-l"><li>Pick board, class, subject</li><li>Select chapters</li><li>Generate and edit questions</li><li>Choose format and export</li></ol></div></section>}
+        {page === 'Generate Paper' && <Wizard p={p} setP={setP} step={step} setStep={setStep} formats={formats} saveP={saveP} toast={toast} />}
+        {page === 'Question Bank' && <QBank key={gq + custom.length} init={gq} favs={favQ} tf={(id) => tf(favQ, setFavQ, id)} add={addQ} mine={addCustom} />}
+        {page === 'Templates & My Formats' && <Tpls favT={favT} tfT={(id) => tf(favT, setFavT, id)} formats={formats} setFormats={setFormats} use={useT} toast={toast} ask={ask} />}
+        {page === 'My Papers' && <Papers papers={papers} setPapers={setPapers} open={openP} ask={ask} toast={toast} />}
+        {page === 'Exam Planner' && <Planner exams={exams} setExams={setExams} papers={papers} openPaper={openP} ask={ask} toast={toast} />}
+        {page === 'Blueprints' && <Blueprints bps={bps} setBps={setBps} use={useBp} ask={ask} toast={toast} />}
+        {page === 'Insights' && <Insights papers={papers} />}
+        {page === 'Subjects & Chapters' && <Subj />}
+        {page === 'Favorites' && <Favorites favQ={favQ} tfQ={(id) => tf(favQ, setFavQ, id)} favT={favT} tfT={(id) => tf(favT, setFavT, id)} addQ={addQ} useT={useT} go={go} />}
+        {page === 'Notifications' && <Notifications notifs={notifs} setNotifs={setNotifs} />}
+        {page === 'Profile' && <Form title="Profile" toast={toast} fields={[['Name', 'Teacher Name'], ['Email', 'teacher@school.in'], ['School / institute', 'Demo Public School'], ['Default board', 'GSEB'], ['Default standard', 'Std 10'], ['Preferred language', 'English']]} />}
+        {page === 'Settings' && <SettingsPage theme={theme} setTheme={setTheme} prefs={prefs} setPrefs={setPrefs} toast={toast} />}
+        {page === 'Help & Support' && <Help toast={toast} />}
+        {page === 'More' && <More go={go} nav={NAV} skip={['Dashboard', 'Generate Paper', 'Question Bank', 'My Papers']} unread={unread} signOut={signOut} />}
       </div>
     </main>
-    <nav className="tabbar" aria-label="Primary">{TABS.map(([pg, ic, l]) => <button key={pg} className={(page === pg ? 'on ' : '') + (pg === 'Generate Paper' ? 'mid' : '')} onClick={() => (pg === 'Generate Paper' ? start() : go(pg))} aria-label={l}><span className="ti"><Ic n={ic} s={pg === 'Generate Paper' ? 24 : 22} /></span><em>{l}</em></button>)}</nav>
+    <nav className="tabbar" aria-label="Primary">{TABS.map(([pg, ic, l]) => <button key={pg} className={(pg === 'More' ? sub || page === 'More' : page === pg) ? 'on ' + (pg === 'Generate Paper' ? 'mid' : '') : pg === 'Generate Paper' ? 'mid' : ''} onClick={() => (pg === 'Generate Paper' ? start() : go(pg))} aria-label={l}><span className="ti"><Ic n={ic} s={pg === 'Generate Paper' ? 24 : 22} /></span><em>{l}</em></button>)}</nav>
     {tm && <div className="toast" role="status">{tm}</div>}
     {dlg && <Modal title="Please confirm" onClose={() => setDlg(null)}><p>{dlg.msg}</p><div className="acts"><button onClick={() => setDlg(null)}>Cancel</button><button className="dng" onClick={() => { dlg.ok(); setDlg(null) }}>Yes, continue</button></div></Modal>}
-    {info && <Modal title={info === 'n' ? 'Notifications' : 'Help & support'} onClose={() => setInfo(null)}>{info === 'n' ? <ul><li>Your draft “Unit Test 1 - Maths” is waiting.</li><li>New demo templates added.</li></ul> : <p>This is a dummy prototype. Contact support@edupaper.example (placeholder).</p>}</Modal>}
   </div>
 }
