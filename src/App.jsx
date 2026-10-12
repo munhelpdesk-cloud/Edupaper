@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import Splash from './Splash.jsx'
 import katex from 'katex'
 import 'katex/contrib/mhchem'
 import { Document, Packer, Paragraph, TextRun } from 'docx'
@@ -218,7 +219,7 @@ function Form({ title, fields, toast }) {
 export default function App() {
   const [page, setPage] = useState('Dashboard'), [nav, setNav] = useState(false), [col, setCol] = useState(false), [step, setStep] = useState(0), [p, setP] = useState(blank)
   const [papers, setPapers] = useState(PAPERS0), [formats, setFormats] = useState(FORMATS0), [favT, setFavT] = useState(['t1', 't6']), [favQ, setFavQ] = useState([])
-  const [tm, setTm] = useState(''), [dlg, setDlg] = useState(null), [info, setInfo] = useState(null), [gq, setGq] = useState('')
+  const [splash, setSplash] = useState(true), [tm, setTm] = useState(''), [dlg, setDlg] = useState(null), [info, setInfo] = useState(null), [gq, setGq] = useState('')
   const toast = (m) => { setTm(m); setTimeout(() => setTm(''), 2600) }
   const ask = (msg, ok) => setDlg({ msg, ok })
   const go = (pg) => { setPage(pg); setNav(false) }
@@ -231,16 +232,22 @@ export default function App() {
   const drafts = papers.filter((x) => x.status === 'Draft')
   const PC = ({ x }) => <button className="card pick" onClick={() => openP(x)}><Thumb /><b>{x.name}</b><small>{x.subject} · {x.std} · {x.date} · {x.status}</small></button>
 
+  const hr = new Date().getHours(), greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening'
+  const TABS = [['Dashboard', 'home', 'Home'], ['Question Bank', 'book', 'Bank'], ['Generate Paper', 'sparkles', 'Create'], ['My Papers', 'file', 'Papers'], ['Profile', 'user', 'Profile']]
+  useEffect(() => { window.scrollTo({ top: 0 }) }, [page])
   return <div className="app">
+    {splash && <Splash onDone={() => setSplash(false)} />}
+    {nav && <div className="scrim" onClick={() => setNav(false)} />}
     <aside className={(nav ? 'open ' : '') + (col ? 'col' : '')}><div className="brand"><img src={col ? mark : logo} alt="EduPaper AI" /></div>
       {NAV.map(([t, ic]) => <button key={t} className={'nav' + (page === t ? ' on' : '')} onClick={() => go(t)} title={t}><Ic n={ic} />{!col && <span>{t}</span>}</button>)}
       <button className="nav" onClick={() => setCol(!col)}>{col ? '»' : '« Collapse'}</button></aside>
     <main>
-      <header><button className="menu" onClick={() => setNav(!nav)} aria-label="Menu"><Ic n="menu" /></button><small className="crumb">Home / {page}</small>
+      <header><button className="menu" onClick={() => setNav(!nav)} aria-label="Menu"><Ic n="menu" /></button><img className="hlogo" src={mark} alt="" /><small className="crumb">Home / {page}</small>
         <input placeholder="Search questions…" aria-label="Global search" value={gq} onChange={(e) => setGq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && go('Question Bank')} />
         <button aria-label="Notifications" onClick={() => setInfo('n')}><Ic n="bell" /></button><button aria-label="Help" onClick={() => setInfo('h')}><Ic n="help" /></button><button aria-label="Profile" onClick={() => go('Profile')}><Ic n="user" /></button>
-        <button className="primary" onClick={() => start()}><Ic n="plus" /> Create Paper</button></header>
-      {page === 'Dashboard' && <section><div className="hero"><div><h2>Good morning! Ready to create your next question paper?</h2><p>Pick a board, choose chapters and export a print-ready paper in minutes.</p><button className="cta" onClick={() => start()}><Ic n="sparkles" /> Generate New Paper</button></div><img className="hm" src={mark} alt="" /></div>
+        <button className="primary hcreate" onClick={() => start()}><Ic n="plus" /> <span>Create Paper</span></button></header>
+      <div key={page} className="page">
+      {page === 'Dashboard' && <section><div className="hero"><div><span className="eyebrow">{greet}, Teacher</span><h2>Ready to create your next question paper?</h2><p>Pick a board, choose chapters and export a print-ready paper in minutes.</p><button className="cta" onClick={() => start()}><Ic n="sparkles" /> Generate New Paper</button></div><img className="hm" src={mark} alt="" /></div>
         
         <div className="grid sp"><button className="card pick" onClick={() => start()}><span className="ci"><Ic n="sparkles" s={22} /></span>Generate New Paper<small>AI + question bank</small></button><button className="card pick" onClick={() => go('Templates & My Formats')}><span className="ci"><Ic n="upload" s={22} /></span>Upload My Format<small>Reuse your school format</small></button>
           <button className="card pick" onClick={() => start({ board: 'GSEB', std: 'Std 10', subject: 'Mathematics' })}><span className="ci"><Ic n="sigma" s={22} /></span>Create Maths & Science Paper<small>Equations, formulas, diagrams</small></button></div>
@@ -258,7 +265,9 @@ export default function App() {
       {page === 'Subjects & Chapters' && <Subj />}
       {page === 'Profile' && <Form title="Profile" toast={toast} fields={[['Name', 'Teacher Name'], ['Email', 'teacher@school.in'], ['School / institute', 'Demo Public School'], ['Default board', 'GSEB'], ['Default standard', 'Std 10'], ['Preferred language', 'English']]} />}
       {page === 'Settings' && <Form title="Settings" toast={toast} fields={[['Default paper format', 'Classic School Exam'], ['Default question language', 'English'], ['Include answer key by default', true, 'cb'], ['Email notifications', true, 'cb'], ['Export as DOCX by default', false, 'cb']]} />}
+      </div>
     </main>
+    <nav className="tabbar" aria-label="Primary">{TABS.map(([pg, ic, l]) => <button key={pg} className={(page === pg ? 'on ' : '') + (pg === 'Generate Paper' ? 'mid' : '')} onClick={() => (pg === 'Generate Paper' ? start() : go(pg))} aria-label={l}><span className="ti"><Ic n={ic} s={pg === 'Generate Paper' ? 24 : 22} /></span><em>{l}</em></button>)}</nav>
     {tm && <div className="toast" role="status">{tm}</div>}
     {dlg && <Modal title="Please confirm" onClose={() => setDlg(null)}><p>{dlg.msg}</p><div className="acts"><button onClick={() => setDlg(null)}>Cancel</button><button className="dng" onClick={() => { dlg.ok(); setDlg(null) }}>Yes, continue</button></div></Modal>}
     {info && <Modal title={info === 'n' ? 'Notifications' : 'Help & support'} onClose={() => setInfo(null)}>{info === 'n' ? <ul><li>Your draft “Unit Test 1 - Maths” is waiting.</li><li>New demo templates added.</li></ul> : <p>This is a dummy prototype. Contact support@edupaper.example (placeholder).</p>}</Modal>}
