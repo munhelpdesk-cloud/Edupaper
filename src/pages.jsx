@@ -141,17 +141,6 @@ export function Favorites({ favQ, tfQ, favT, tfT, addQ, useT, go }) {
   </section>
 }
 
-/* ---------- Notifications ---------- */
-export function Notifications({ notifs, setNotifs }) {
-  const unread = notifs.filter((n) => !n.read).length
-  return <section><div className="row wrap"><h2>Notifications</h2><button className="ghost" disabled={!unread} onClick={() => setNotifs(notifs.map((n) => ({ ...n, read: true })))}>Mark all read</button></div>
-    {!notifs.length ? <Empty icon="bell" title="You're all caught up" sub="New alerts will appear here." /> :
-      <div className="card list">{notifs.map((n) => <div key={n.id} className="nt-row">
-        <button className="li nt" onClick={() => setNotifs(notifs.map((x) => (x.id === n.id ? { ...x, read: true } : x)))}><i className={'dot' + (n.read ? ' off' : '')} /><span className="grow"><b>{n.title}</b><small>{n.body}</small><small>{n.time}</small></span></button>
-        <button className="hbtn" aria-label="Dismiss" onClick={() => setNotifs(notifs.filter((x) => x.id !== n.id))}><Ic n="x" s={16} /></button></div>)}</div>}
-  </section>
-}
-
 /* ---------- Help ---------- */
 export function Help({ toast }) {
   const [msg, setMsg] = useState('')

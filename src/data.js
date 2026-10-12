@@ -65,10 +65,10 @@ export const BLUEPRINTS0 = [
   { id: 'b2', name: 'Unit Test - 25 marks', board: '', std: '', subject: '', rows: [{ type: 'MCQ', n: 5, m: 1 }, { type: 'Short', n: 5, m: 2 }, { type: 'Long', n: 2, m: 5 }], diff: { Easy: 50, Medium: 35, Hard: 15 } }
 ]
 export const NOTIFS0 = [
-  { id: 'n1', title: 'Draft waiting', body: 'Your draft "Unit Test 1 - Maths" is not finished yet.', time: 'Today', read: false },
-  { id: 'n2', title: 'Exam coming up', body: 'Unit Test 1 - Maths is scheduled for 15 Oct. Export the paper in advance.', time: 'Today', read: false },
-  { id: 'n3', title: 'New templates added', body: '2 new templates are available: Board Style Mock and Coaching Weekly Test.', time: 'Yesterday', read: false },
-  { id: 'n4', title: 'Tip: review AI questions', body: 'Questions marked "Needs review" should be checked before you export.', time: '3 days ago', read: true }
+  { id: 'n1', title: 'Draft waiting', body: 'Your draft "Unit Test 1 - Maths" is not finished yet.', time: 'Today, 9:30 AM', type: 'draft', read: false },
+  { id: 'n2', title: 'Exam coming up', body: 'Unit Test 1 - Maths is scheduled for 15 Oct. Export the paper in advance.', time: 'Today, 8:10 AM', type: 'exam', read: false },
+  { id: 'n3', title: 'New templates added', body: '2 new templates are available: Board Style Mock and Coaching Weekly Test.', time: 'Yesterday, 4:45 PM', type: 'template', read: false },
+  { id: 'n4', title: 'Tip: review AI questions', body: 'Questions marked "Needs review" should be checked before you export.', time: '3 days ago', type: 'tip', read: true }
 ]
 export const FAQ = [
   ['How do I create a question paper?', 'Tap Create, pick board, class, subject and chapters, set marks and question types, generate questions, choose a format and export.'],

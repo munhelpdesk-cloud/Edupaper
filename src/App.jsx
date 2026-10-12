@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import katex from 'katex'
 import 'katex/contrib/mhchem'
 import { Capacitor } from '@capacitor/core'
@@ -7,8 +7,9 @@ import { Document, Packer, Paragraph, TextRun } from 'docx'
 import logo from './assets/logo-full.png'
 import mark from './assets/mark.png'
 import Splash from './Splash.jsx'
+import NotifDrawer from './NotifDrawer.jsx'
 import { Ic, Modal, Badge, Thumb, M, Diagram, today } from './ui.jsx'
-import { Planner, ExamCard, Blueprints, Insights, Favorites, Notifications, Help, SettingsPage, More, Onboarding, NewQuestion } from './pages.jsx'
+import { Planner, ExamCard, Blueprints, Insights, Favorites, Help, SettingsPage, More, Onboarding, NewQuestion } from './pages.jsx'
 import { CUR, BANK, TEMPLATES, CATS, MEDIA, TYPES, AI_TXT, FORMATS0, PAPERS0, EXAMS0, BLUEPRINTS0, NOTIFS0 } from './data.js'
 let n = 100
 const uid = () => 'u' + Date.now().toString(36) + ++n
@@ -46,7 +47,7 @@ function QRow({ q, i, last, ch, mv, dup, del, regen, eq }) {
       <button onClick={() => setA(!a)}>{a ? 'Hide' : 'Show'} answer</button><button className="dng" onClick={del}>Delete</button></div></div>
 }
 
-function Paper({ p, formats, key: k }) {
+function Paper({ p, formats }) {
   const f = formats.find((x) => x.id === p.tpl), school = f ? f.school : 'Your School Name'
   const t = TEMPLATES.find((x) => x.id === p.tpl)
   const total = p.qs.reduce((a, q) => a + q.marks, 0)
@@ -59,6 +60,8 @@ function Paper({ p, formats, key: k }) {
     {p.key && <><hr /><h3>Answer Key</h3>{p.qs.map((q, i) => <div key={q.uid}>{i + 1}. <M t={q.ans || '—'} /></div>)}</>}
     <div className="foot">Page 1 of 1</div></div>
 }
+
+const Pick = ({ items, v, f, sub }) => <div className="grid">{items.map((i) => <button key={i} className={'card pick' + (v === i ? ' on' : '')} onClick={() => f(i)}>{i}{sub && <small>{sub}</small>}</button>)}</div>
 
 function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
   const [q, setQ] = useState(''), [eqFor, setEqFor] = useState(null), [ft, setFt] = useState('b'), [done, setDone] = useState(false)
@@ -85,7 +88,6 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
     saveP('Completed'); setDone(true)
   }
   const valid = [p.board, p.std, p.subject, p.chapters.length, p.name && p.marks > 0, 1, p.qs.length, 1, 1, 1][step]
-  const Pick = ({ items, v, f, sub }) => <div className="grid">{items.map((i) => <button key={i} className={'card pick' + (v === i ? ' on' : '')} onClick={() => f(i)}>{i}{sub && <small>{sub}</small>}</button>)}</div>
   const V = [
     <Pick items={Object.keys(CUR)} v={p.board} f={(b) => set({ board: b, std: '', subject: '', chapters: [], qs: [] })} sub="Demo content" />,
     stds.length ? <><Pick items={stds} v={p.std} f={(s) => set({ std: s, subject: '', chapters: [], qs: [] })} /><h4>Medium</h4><Pick items={MEDIA} v={p.medium} f={(m) => set({ medium: m })} /></> : <p>Select a board first.</p>,
@@ -134,13 +136,14 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
     {!valid && <p className="err">Please complete this step to continue.</p>}</section>
 }
 
+const Sel = ({ k, o, l, f, setF }) => <select aria-label={l} value={f[k] || ''} onChange={(e) => setF({ ...f, [k]: e.target.value })}><option value="">{l}</option>{o.map((x) => <option key={x}>{x}</option>)}</select>
+
 function QBank({ init, favs, tf, add, mine }) {
   const [mkq, setMkq] = useState(false), [s, setS] = useState(init || ''), [f, setF] = useState({}), [fv, setFv] = useState(false), [sel, setSel] = useState([]), [pv, setPv] = useState(null)
   const L = BANK.filter((q) => (!s || (q.text + q.ch + q.sub).toLowerCase().includes(s.toLowerCase())) && (!f.ty || q.type === f.ty) && (!f.df || q.diff === f.df) && (!f.mk || q.marks === +f.mk) && (!f.sb || q.sub === f.sb) && (!fv || favs.includes(q.id)))
-  const Sel = ({ k, o, l }) => <select aria-label={l} value={f[k] || ''} onChange={(e) => setF({ ...f, [k]: e.target.value })}><option value="">{l}</option>{o.map((x) => <option key={x}>{x}</option>)}</select>
   return <section><h2>Question Bank <small>(dummy content)</small></h2>
     <div className="row wrap"><input placeholder="Search questions…" value={s} onChange={(e) => setS(e.target.value)} aria-label="Search" />
-      <Sel k="sb" l="Subject" o={['Mathematics', 'Science', 'Physics', 'Chemistry']} /><Sel k="ty" l="Type" o={TYPES} /><Sel k="df" l="Difficulty" o={['Easy', 'Medium', 'Hard']} /><Sel k="mk" l="Marks" o={['1', '2', '3', '4']} />
+      <Sel f={f} setF={setF} k="sb" l="Subject" o={['Mathematics', 'Science', 'Physics', 'Chemistry']} /><Sel f={f} setF={setF} k="ty" l="Type" o={TYPES} /><Sel f={f} setF={setF} k="df" l="Difficulty" o={['Easy', 'Medium', 'Hard']} /><Sel f={f} setF={setF} k="mk" l="Marks" o={['1', '2', '3', '4']} />
       <label className="chip"><input type="checkbox" checked={fv} onChange={() => setFv(!fv)} />Favorites</label>
       <button className="primary" onClick={() => setMkq(true)}><Ic n="plus" s={16} /> New question</button><button disabled={!sel.length} onClick={() => { sel.forEach((id) => add(BANK.find((b) => b.id === id))); setSel([]) }}>Add selected ({sel.length})</button></div>
     {!L.length && <div className="card">No questions match. Try clearing filters.</div>}
@@ -195,6 +198,8 @@ function Papers({ papers, setPapers, open, ask, toast }) {
         <button className="dng" onClick={() => ask('Delete this paper permanently?', () => setPapers(papers.filter((x) => x.id !== p.id)))}>Delete</button></div></div>)}</div></section>
 }
 
+const PC = ({ x, open }) => <button className="card pick" onClick={() => open(x)}><Thumb /><b>{x.name}</b><small>{x.subject} · {x.std} · {x.date} · {x.status}</small></button>
+
 function Subj() {
   const [b, setB] = useState('GSEB'), [s, setS] = useState('Std 10'), [sb, setSb] = useState(null), [q, setQ] = useState('')
   const D = (CUR[b] || {})[s] || {}
@@ -220,6 +225,11 @@ const NAV = [
 ]
 const TABS = [['Dashboard', 'home', 'Home'], ['Question Bank', 'book', 'Bank'], ['Generate Paper', 'sparkles', 'Create'], ['My Papers', 'file', 'Papers'], ['More', 'grid', 'More']]
 const TABP = TABS.map((t) => t[0])
+// Notifications is a drawer (not a route); every other nav item is a page with its own URL hash.
+const PAGES = [...NAV.flatMap(([, items]) => items.map(([t]) => t)).filter((t) => t !== 'Notifications'), 'More']
+const slug = (t) => t.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+const BY_SLUG = Object.fromEntries(PAGES.map((t) => [slug(t), t]))
+const fromHash = () => BY_SLUG[window.location.hash.replace(/^#\/?/, '')] || 'Dashboard'
 const read = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d } catch { return d } }
 function usePersist(k, d) {
   const [v, setV] = useState(() => read(k, d))
@@ -228,7 +238,7 @@ function usePersist(k, d) {
 }
 
 export default function App() {
-  const [page, setPage] = useState('Dashboard'), [col, setCol] = useState(false), [step, setStep] = useState(0), [p, setP] = useState(blank)
+  const [page, setPage] = useState(fromHash), [nd, setNd] = useState(false), [col, setCol] = useState(false), [step, setStep] = useState(0), [p, setP] = useState(blank)
   const [papers, setPapers] = usePersist('ep_papers', PAPERS0), [formats, setFormats] = usePersist('ep_formats', FORMATS0)
   const [favT, setFavT] = usePersist('ep_favT', ['t1', 't6']), [favQ, setFavQ] = usePersist('ep_favQ', [])
   const [exams, setExams] = usePersist('ep_exams', EXAMS0), [bps, setBps] = usePersist('ep_bps', BLUEPRINTS0), [notifs, setNotifs] = usePersist('ep_notifs', NOTIFS0)
@@ -252,7 +262,41 @@ export default function App() {
 
   const toast = (m) => { setTm(m); setTimeout(() => setTm(''), 2600) }
   const ask = (msg, ok) => setDlg({ msg, ok })
-  const go = (pg) => setPage(pg)
+  // ---- navigation: one history entry per page visit, kept in sync with the URL hash ----
+  const pageRef = useRef(page), ndRef = useRef(false)
+  useEffect(() => {
+    const st = history.state || {}
+    history.scrollRestoration = 'manual'
+    history.replaceState({ idx: st.idx || 0 }, '', '#/' + slug(pageRef.current)) // drop any stale drawer flag after a reload
+    const onPop = () => {
+      const s = history.state || {}, pg = fromHash()
+      pageRef.current = pg; ndRef.current = !!s.drawer
+      setPage(pg); setNd(!!s.drawer)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+  const openNd = () => {
+    if (ndRef.current) return
+    const st = history.state || {}
+    history.pushState({ ...st, idx: (st.idx || 0) + 1, drawer: true }, '', window.location.href)
+    ndRef.current = true; setNd(true)
+  }
+  const closeNd = () => {
+    if (!ndRef.current) return
+    ndRef.current = false
+    if ((history.state || {}).drawer) history.back() // popstate then closes it, so Back never leaves a dead entry
+    else setNd(false)
+  }
+  const go = (pg, replace = false) => {
+    if (pg === 'Notifications') return openNd()
+    if (pg === pageRef.current) return // never stack duplicate entries for the same page
+    const st = history.state || {}
+    history[replace ? 'replaceState' : 'pushState']({ idx: (st.idx || 0) + (replace ? 0 : 1) }, '', '#/' + slug(pg))
+    pageRef.current = pg; setPage(pg)
+  }
+  // in-app back arrows: return to the real previous page when there is one, else fall back
+  const goBack = (fallback) => { const st = history.state || {}; if ((st.idx || 0) > 0 && !st.drawer) history.back(); else go(fallback, true) }
   const start = (o = {}, st = 0) => { setP({ ...blank, key: prefs.key, medium: prefs.medium, ...o }); setStep(st); go('Generate Paper') }
   const saveP = (status) => { const id = p.id || uid(), np = { ...p, id, status, date: today() }; setP(np); setPapers((ps) => [np, ...ps.filter((x) => x.id !== id)]); toast(status === 'Draft' ? 'Draft saved' : 'Saved to My Papers') }
   const openP = (x) => { setP({ ...blank, ...x }); setStep(6); go('Generate Paper') }
@@ -261,12 +305,11 @@ export default function App() {
   const tf = (a, s, v) => s(a.includes(v) ? a.filter((x) => x !== v) : [...a, v])
   const useT = (id) => { setP({ ...p, tpl: id }); setStep(7); go('Generate Paper'); toast('Template selected') }
   const useBp = (b) => { const full = b.board && b.std && b.subject; start({ name: b.name, marks: b.rows.reduce((a, r) => a + r.n * r.m, 0), nq: b.rows.reduce((a, r) => a + r.n, 0), types: [...new Set(b.rows.map((r) => r.type))], board: b.board, std: b.std, subject: b.subject, diff: 'Mixed' }, full ? 3 : 0); toast('Blueprint applied') }
-  const signOut = () => ask('Sign out of EduPaper AI?', () => { setSeen(false); go('Dashboard') })
+  const signOut = () => ask('Sign out of EduPaper AI?', () => { setSeen(false); go('Dashboard', true) })
   const drafts = papers.filter((x) => x.status === 'Draft'), unread = notifs.filter((x) => !x.read).length
   const upcoming = exams.filter((e) => e.date >= today()).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).slice(0, 3)
   const hr = new Date().getHours(), greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening'
   const flow = page === 'Generate Paper', sub = !TABP.includes(page)
-  const PC = ({ x }) => <button className="card pick" onClick={() => openP(x)}><Thumb /><b>{x.name}</b><small>{x.subject} · {x.std} · {x.date} · {x.status}</small></button>
 
   return <div className={'app' + (flow ? ' flow' : '')}>
     {splash && <Splash onDone={() => setSplash(false)} />}
@@ -274,18 +317,18 @@ export default function App() {
     <aside className={col ? 'col' : ''}>
       <div className="brand"><img className="lg full" src={logo} alt="EduPaper AI" /><img className="lg mk" src={mark} alt="EduPaper AI" /></div>
       {NAV.map(([g, items]) => <div key={g} className="ng"><small className="ng-l">{g}</small>
-        {items.map(([t, ic]) => <button key={t} className={'nav' + (page === t ? ' on' : '')} onClick={() => go(t)} title={t}><Ic n={ic} /><span>{t}</span>{t === 'Notifications' && unread > 0 && <em className="nb">{unread}</em>}</button>)}</div>)}
+        {items.map(([t, ic]) => <button key={t} className={'nav' + (page === t ? ' on' : '')} onClick={() => go(t)} title={t} {...(t === 'Notifications' ? { 'aria-haspopup': 'dialog', 'aria-expanded': nd } : {})}><Ic n={ic} /><span>{t}</span>{t === 'Notifications' && unread > 0 && <em className="nb">{unread}</em>}</button>)}</div>)}
       <button className="nav collapse" onClick={() => setCol(!col)}><Ic n={col ? 'right' : 'back'} /><span>Collapse</span></button>
     </aside>
     <main>
       <header>
-        {flow ? <button className="mob hbtn" onClick={() => go('Dashboard')} aria-label="Close"><Ic n="x" /></button>
-          : sub ? <button className="mob hbtn" onClick={() => go('More')} aria-label="Back"><Ic n="back" /></button>
+        {flow ? <button className="mob hbtn" onClick={() => goBack('Dashboard')} aria-label="Close"><Ic n="x" /></button>
+          : sub ? <button className="mob hbtn" onClick={() => goBack('More')} aria-label="Back"><Ic n="back" /></button>
             : <img className="mob hlogo lg" src={mark} alt="" />}
         <b className="mob htitle">{flow ? 'New Paper' : page === 'Dashboard' ? 'EduPaper AI' : page}</b>
         <small className="desk crumb">Home / {page}</small>
         <input className="desk" placeholder="Search questions…" aria-label="Global search" value={gq} onChange={(e) => setGq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && go('Question Bank')} />
-        <button className="hbtn" aria-label="Notifications" onClick={() => go('Notifications')}><Ic n="bell" />{unread > 0 && <i className="cnt" />}</button>
+        <button className="hbtn bell" aria-label={'Notifications' + (unread ? ', ' + unread + ' unread' : '')} aria-haspopup="dialog" aria-expanded={nd} onClick={() => (nd ? closeNd() : openNd())}><Ic n="bell" />{unread > 0 && <i key={unread} className="cnt" aria-hidden="true">{unread > 9 ? '9+' : unread}</i>}</button>
         <button className="hbtn desk" aria-label="Help" onClick={() => go('Help & Support')}><Ic n="help" /></button>
         <button className="hbtn desk" aria-label="Profile" onClick={() => go('Profile')}><Ic n="user" /></button>
         <button className="primary desk" onClick={() => start()}><Ic n="plus" /> Create Paper</button>
@@ -299,8 +342,8 @@ export default function App() {
           <div className="grid sp">{[['Total papers', papers.length], ['Saved drafts', drafts.length], ['Upcoming exams', upcoming.length], ['Favorite templates', favT.length]].map(([l, v]) => <div key={l} className="card stat"><b>{v}</b><small>{l}</small></div>)}</div>
           <div className="row"><h3>Upcoming exams</h3><button className="ghost" onClick={() => go('Exam Planner')}>View planner</button></div>
           {upcoming.length ? <div className="grid g2">{upcoming.map((e) => <ExamCard key={e.id} e={e} />)}</div> : <div className="card">No exams scheduled. Plan one in the Exam Planner.</div>}
-          <h3>Continue working</h3>{drafts.length ? <div className="grid">{drafts.map((x) => <PC key={x.id} x={x} />)}</div> : <div className="card">No drafts. Start a new paper!</div>}
-          <h3>Recent papers</h3><div className="grid">{papers.filter((x) => x.status !== 'Archived').slice(0, 3).map((x) => <PC key={x.id} x={x} />)}</div>
+          <h3>Continue working</h3>{drafts.length ? <div className="grid">{drafts.map((x) => <PC key={x.id} x={x} open={openP} />)}</div> : <div className="card">No drafts. Start a new paper!</div>}
+          <h3>Recent papers</h3><div className="grid">{papers.filter((x) => x.status !== 'Archived').slice(0, 3).map((x) => <PC key={x.id} x={x} open={openP} />)}</div>
           <h3>My formats</h3><div className="grid">{formats.map((f) => <button key={f.id} className="card pick" onClick={() => useT(f.id)}><Thumb /><b>{f.name}</b><small>{f.school}</small></button>)}</div>
           <h3>Getting started</h3><div className="card"><ol className="steps-l"><li>Pick board, class, subject</li><li>Select chapters</li><li>Generate and edit questions</li><li>Choose format and export</li></ol></div></section>}
         {page === 'Generate Paper' && <Wizard p={p} setP={setP} step={step} setStep={setStep} formats={formats} saveP={saveP} toast={toast} />}
@@ -312,7 +355,6 @@ export default function App() {
         {page === 'Insights' && <Insights papers={papers} />}
         {page === 'Subjects & Chapters' && <Subj />}
         {page === 'Favorites' && <Favorites favQ={favQ} tfQ={(id) => tf(favQ, setFavQ, id)} favT={favT} tfT={(id) => tf(favT, setFavT, id)} addQ={addQ} useT={useT} go={go} />}
-        {page === 'Notifications' && <Notifications notifs={notifs} setNotifs={setNotifs} />}
         {page === 'Profile' && <Form title="Profile" toast={toast} fields={[['Name', 'Teacher Name'], ['Email', 'teacher@school.in'], ['School / institute', 'Demo Public School'], ['Default board', 'GSEB'], ['Default standard', 'Std 10'], ['Preferred language', 'English']]} />}
         {page === 'Settings' && <SettingsPage theme={theme} setTheme={setTheme} prefs={prefs} setPrefs={setPrefs} toast={toast} />}
         {page === 'Help & Support' && <Help toast={toast} />}
@@ -320,6 +362,7 @@ export default function App() {
       </div>
     </main>
     <nav className="tabbar" aria-label="Primary">{TABS.map(([pg, ic, l]) => <button key={pg} className={(pg === 'More' ? sub || page === 'More' : page === pg) ? 'on ' + (pg === 'Generate Paper' ? 'mid' : '') : pg === 'Generate Paper' ? 'mid' : ''} onClick={() => (pg === 'Generate Paper' ? start() : go(pg))} aria-label={l}><span className="ti"><Ic n={ic} s={pg === 'Generate Paper' ? 24 : 22} /></span><em>{l}</em></button>)}</nav>
+    <NotifDrawer open={nd} onClose={closeNd} notifs={notifs} setNotifs={setNotifs} ask={ask} blocked={!!dlg} />
     {tm && <div className="toast" role="status">{tm}</div>}
     {dlg && <Modal title="Please confirm" onClose={() => setDlg(null)}><p>{dlg.msg}</p><div className="acts"><button onClick={() => setDlg(null)}>Cancel</button><button className="dng" onClick={() => { dlg.ok(); setDlg(null) }}>Yes, continue</button></div></Modal>}
   </div>
