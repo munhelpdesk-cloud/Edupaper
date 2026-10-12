@@ -8,7 +8,7 @@ import mark from './assets/mark.png'
 import { CUR, BANK, TEMPLATES, CATS, MEDIA, TYPES, AI_TXT, FORMATS0, PAPERS0 } from './data.js'
 
 const NAV = [['Dashboard', 'home'], ['Generate Paper', 'sparkles'], ['Question Bank', 'book'], ['Templates & My Formats', 'layout'], ['My Papers', 'file'], ['Subjects & Chapters', 'list'], ['Profile', 'user'], ['Settings', 'sliders']]
-const I = { home: 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', sparkles: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z', book: 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 1 2-2h13', layout: 'M3 4h18v6H3zM3 14h8v6H3zM15 14h6v6h-6z', file: 'M6 2h8l5 5v15H6zM14 2v5h5', list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01', user: 'M20 21a8 8 0 0 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8', sliders: 'M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4', bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4', help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01', up: 'M12 19V5M5 12l7-7 7 7', down: 'M12 5v14M19 12l-7 7-7-7', x: 'M18 6L6 18M6 6l12 12', star: 'M12 2l3 7 7 .6-5.3 4.7 1.6 7.2-6.3-3.7-6.3 3.7 1.6-7.2L2 9.6 9 9z', check: 'M20 6L9 17l-5-5', menu: 'M3 6h18M3 12h18M3 18h18', plus: 'M12 5v14M5 12h14', upload: 'M12 16V4M6 10l6-6 6 6M4 20h16', sigma: 'M18 5H6l7 7-7 7h12' }
+const I = { home: 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', sparkles: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z', book: 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 1 2-2h13', layout: 'M3 4h18v6H3zM3 14h8v6H3zM15 14h6v6h-6z', file: 'M6 2h8l5 5v15H6zM14 2v5h5', list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01', user: 'M20 21a8 8 0 0 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8', sliders: 'M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4', bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4', help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01', up: 'M12 19V5M5 12l7-7 7 7', down: 'M12 5v14M19 12l-7 7-7-7', x: 'M18 6L6 18M6 6l12 12', star: 'M12 2l3 7 7 .6-5.3 4.7 1.6 7.2-6.3-3.7-6.3 3.7 1.6-7.2L2 9.6 9 9z', check: 'M20 6L9 17l-5-5', menu: 'M3 6h18M3 12h18M3 18h18', plus: 'M12 5v14M5 12h14', upload: 'M12 16V4M6 10l6-6 6 6M4 20h16', sigma: 'M18 5H6l7 7-7 7h12', right: 'M9 6l6 6-6 6' }
 const Ic = ({ n, f, s = 18 }) => <svg width={s} height={s} viewBox="0 0 24 24" fill={f ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={I[n]} /></svg>
 const STEPS = ['Board', 'Standard', 'Subject', 'Chapters', 'Details', 'Source', 'Questions', 'Format', 'Preview', 'Export']
 const today = () => new Date().toISOString().slice(0, 10)
@@ -134,7 +134,7 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
   return <section>
     <ol className="steps">{STEPS.map((t, i) => <li key={t}><button disabled={i > step && !valid} className={i === step ? 'on' : i < step ? 'done' : ''} onClick={() => setStep(i)}>{i < step ? <Ic n="check" s={14} /> : i + 1} {t}</button></li>)}</ol>
     <h2>{STEPS[step]}</h2>{V}
-    <footer><button disabled={!step} onClick={() => setStep(step - 1)}>← Back</button><button onClick={() => saveP('Draft')}>Save draft</button>
+    <footer><button disabled={!step} onClick={() => setStep(step - 1)}>← Back</button><button className="ghost" onClick={() => saveP('Draft')}>Save draft</button>
       <button className="primary" disabled={!valid || step === 9} onClick={() => setStep(step + 1)}>Continue →</button></footer>
     {!valid && <p className="err">Please complete this step to continue.</p>}</section>
 }
@@ -235,17 +235,22 @@ export default function App() {
   const hr = new Date().getHours(), greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening'
   const TABS = [['Dashboard', 'home', 'Home'], ['Question Bank', 'book', 'Bank'], ['Generate Paper', 'sparkles', 'Create'], ['My Papers', 'file', 'Papers'], ['Profile', 'user', 'Profile']]
   useEffect(() => { window.scrollTo({ top: 0 }) }, [page])
-  return <div className="app">
+  return <div className={'app' + (page === 'Generate Paper' ? ' flow' : '')}>
     {splash && <Splash onDone={() => setSplash(false)} />}
     {nav && <div className="scrim" onClick={() => setNav(false)} />}
     <aside className={(nav ? 'open ' : '') + (col ? 'col' : '')}><div className="brand"><img src={col ? mark : logo} alt="EduPaper AI" /></div>
       {NAV.map(([t, ic]) => <button key={t} className={'nav' + (page === t ? ' on' : '')} onClick={() => go(t)} title={t}><Ic n={ic} />{!col && <span>{t}</span>}</button>)}
       <button className="nav" onClick={() => setCol(!col)}>{col ? '»' : '« Collapse'}</button></aside>
     <main>
-      <header><button className="menu" onClick={() => setNav(!nav)} aria-label="Menu"><Ic n="menu" /></button><img className="hlogo" src={mark} alt="" /><small className="crumb">Home / {page}</small>
-        <input placeholder="Search questions…" aria-label="Global search" value={gq} onChange={(e) => setGq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && go('Question Bank')} />
-        <button aria-label="Notifications" onClick={() => setInfo('n')}><Ic n="bell" /></button><button aria-label="Help" onClick={() => setInfo('h')}><Ic n="help" /></button><button aria-label="Profile" onClick={() => go('Profile')}><Ic n="user" /></button>
-        <button className="primary hcreate" onClick={() => start()}><Ic n="plus" /> <span>Create Paper</span></button></header>
+      <header>
+        {page === 'Generate Paper' ? <button className="mob hbtn" onClick={() => go('Dashboard')} aria-label="Close"><Ic n="x" /></button> : <img className="mob hlogo" src={mark} alt="" />}
+        <b className="mob htitle">{page === 'Generate Paper' ? 'New Paper' : page === 'Dashboard' ? 'EduPaper AI' : page}</b>
+        <small className="desk crumb">Home / {page}</small>
+        <input className="desk" placeholder="Search questions…" aria-label="Global search" value={gq} onChange={(e) => setGq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && go('Question Bank')} />
+        <button className="hbtn" aria-label="Notifications" onClick={() => setInfo('n')}><Ic n="bell" /></button>
+        <button className="hbtn desk" aria-label="Help" onClick={() => setInfo('h')}><Ic n="help" /></button>
+        <button className="hbtn desk" aria-label="Profile" onClick={() => go('Profile')}><Ic n="user" /></button>
+        <button className="primary desk" onClick={() => start()}><Ic n="plus" /> Create Paper</button></header>
       <div key={page} className="page">
       {page === 'Dashboard' && <section><div className="hero"><div><span className="eyebrow">{greet}, Teacher</span><h2>Ready to create your next question paper?</h2><p>Pick a board, choose chapters and export a print-ready paper in minutes.</p><button className="cta" onClick={() => start()}><Ic n="sparkles" /> Generate New Paper</button></div><img className="hm" src={mark} alt="" /></div>
         
@@ -263,6 +268,7 @@ export default function App() {
       {page === 'Templates & My Formats' && <Tpls favT={favT} tfT={(id) => tf(favT, setFavT, id)} formats={formats} setFormats={setFormats} use={useT} toast={toast} ask={ask} />}
       {page === 'My Papers' && <Papers papers={papers} setPapers={setPapers} open={openP} ask={ask} toast={toast} />}
       {page === 'Subjects & Chapters' && <Subj />}
+      {page === 'Profile' && <div className="mobonly"><h2>More</h2><div className="card list">{[['Templates & My Formats', 'layout'], ['Subjects & Chapters', 'list'], ['Settings', 'sliders']].map(([t, ic]) => <button key={t} className="li" onClick={() => go(t)}><span className="ci sm"><Ic n={ic} /></span><span>{t}</span><Ic n="right" /></button>)}</div></div>}
       {page === 'Profile' && <Form title="Profile" toast={toast} fields={[['Name', 'Teacher Name'], ['Email', 'teacher@school.in'], ['School / institute', 'Demo Public School'], ['Default board', 'GSEB'], ['Default standard', 'Std 10'], ['Preferred language', 'English']]} />}
       {page === 'Settings' && <Form title="Settings" toast={toast} fields={[['Default paper format', 'Classic School Exam'], ['Default question language', 'English'], ['Include answer key by default', true, 'cb'], ['Email notifications', true, 'cb'], ['Export as DOCX by default', false, 'cb']]} />}
       </div>
