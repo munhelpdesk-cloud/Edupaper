@@ -169,9 +169,10 @@ export function SettingsPage({ theme, setTheme, prefs, setPrefs, toast }) {
 }
 
 /* ---------- More (mobile hub) ---------- */
-export function More({ go, nav, skip, unread, signOut }) {
+export function More({ go, nav, skip, unread, signOut, user, plan }) {
+  const nm = (user && user.name) || 'Teacher'
   return <section>
-    <button className="card prof" onClick={() => go('Profile')}><span className="av">T</span><span className="grow"><b>Teacher Name</b><small>teacher@school.in</small></span><Ic n="right" /></button>
+    <button className="card prof" onClick={() => go('Profile')}><span className="av">{nm.trim().charAt(0).toUpperCase()}</span><span className="grow"><b>{nm}</b><small>{user ? user.email : ''}</small></span>{plan === 'pro' && <Badge c="ai">Pro</Badge>}<Ic n="right" /></button>
     {nav.map(([g, items]) => { const it = items.filter(([t]) => !skip.includes(t)); return it.length ? <div key={g}><h4>{g}</h4><div className="card list">{it.map(([t, ic]) => <button key={t} className="li" onClick={() => go(t)}><span className="ci sm"><Ic n={ic} /></span><span className="grow">{t}</span>{t === 'Notifications' && unread > 0 && <Badge c="warn">{unread}</Badge>}<Ic n="right" s={16} /></button>)}</div></div> : null })}
     <div className="card list"><button className="li dng" onClick={signOut}><span className="ci sm"><Ic n="logout" /></span><span className="grow">Sign out</span></button></div>
   </section>

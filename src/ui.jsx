@@ -12,7 +12,11 @@ export const I = {
   target: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', chart: 'M3 3v18h18M7 15v3M12 9v9M17 5v13',
   logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9', moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
   sun: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
-  phone: 'M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2', trash: 'M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6', clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2'
+  phone: 'M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2', trash: 'M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6', clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2',
+  card: 'M3 5h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM1 10h22', lock: 'M5 11h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 8 0v4',
+  mail: 'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6', eye: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  eyeoff: 'M17.9 17.9A10.9 10.9 0 0 1 12 20C5 20 1 12 1 12a18.5 18.5 0 0 1 5.1-5.9M9.9 4.2A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.2 3.2M14.1 14.1a3 3 0 1 1-4.2-4.2M1 1l22 22',
+  shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM9 12l2 2 4-4', zap: 'M13 2L3 14h9l-1 8 10-12h-9z', bank: 'M3 21h18M5 21V10M9 21V10M15 21V10M19 21V10M2 10l10-7 10 7'
 }
 export const Ic = ({ n, f, s = 18 }) => <svg width={s} height={s} viewBox="0 0 24 24" fill={f ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={I[n]} /></svg>
 export const M = ({ t }) => <span dangerouslySetInnerHTML={{ __html: String(t).replace(/\$(.+?)\$/g, (_, m) => katex.renderToString(m, { throwOnError: false })) }} />
@@ -22,7 +26,7 @@ export const Modal = ({ title, onClose, children }) => <div className="ov" role=
 export const Badge = ({ c = '', children }) => <i className={'bd ' + c}>{children}</i>
 export const Empty = ({ icon = 'file', title, sub, children }) => <div className="card empty"><span className="ci"><Ic n={icon} s={22} /></span><b>{title}</b>{sub && <small>{sub}</small>}{children}</div>
 export const Toggle = ({ on, set, label, sub }) => <button type="button" role="switch" aria-checked={on} className="tg" onClick={() => set(!on)}><span><b>{label}</b>{sub && <small>{sub}</small>}</span><i className={'sw' + (on ? ' on' : '')}><u /></i></button>
-export const Seg = ({ v, set, items }) => <div className="seg">{items.map(([k, l, ic]) => <button key={k} className={v === k ? 'on' : ''} onClick={() => set(k)}>{ic && <Ic n={ic} s={16} />}{l}</button>)}</div>
+export const Seg = ({ v, set, items }) => <div className="seg">{items.map(([k, l, ic]) => <button type="button" key={k} className={v === k ? 'on' : ''} onClick={() => set(k)}>{ic && <Ic n={ic} s={16} />}{l}</button>)}</div>
 export const today = () => new Date().toISOString().slice(0, 10)
 export const daysTo = (d) => Math.round((new Date(d) - new Date(today())) / 864e5)
 export const when = (d) => { const n = daysTo(d); return n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : n > 1 ? 'In ' + n + ' days' : n === -1 ? 'Yesterday' : Math.abs(n) + ' days ago' }

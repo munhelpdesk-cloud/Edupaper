@@ -8,6 +8,11 @@ import logo from './assets/logo-full.png'
 import mark from './assets/mark.png'
 import Splash from './Splash.jsx'
 import NotifDrawer from './NotifDrawer.jsx'
+import Auth from './Auth.jsx'
+import { PlansPage, CheckoutPage } from './Billing.jsx'
+import ProfilePage from './Profile.jsx'
+import { currentUser, logout } from './auth.js'
+import { activePlan, newSub, startFor } from './payments.js'
 import { Ic, Modal, Badge, Thumb, M, Diagram, today } from './ui.jsx'
 import { Planner, ExamCard, Blueprints, Insights, Favorites, Help, SettingsPage, More, Onboarding, NewQuestion } from './pages.jsx'
 import { CUR, BANK, TEMPLATES, CATS, MEDIA, TYPES, AI_TXT, FORMATS0, PAPERS0, EXAMS0, BLUEPRINTS0, NOTIFS0 } from './data.js'
@@ -212,21 +217,16 @@ function Subj() {
     {sb && Object.keys(D[sb]).filter((c) => c.toLowerCase().includes(q.toLowerCase())).map((c) => <details key={c} className="card"><summary>{c} <small>{BANK.filter((x) => x.ch === c).length} questions</small></summary>{D[sb][c].map((t) => <div key={t} className="sub">• {t}</div>)}</details>)}</section>
 }
 
-function Form({ title, fields, toast }) {
-  return <section><h2>{title}</h2><div className="card form">{fields.map(([l, v, t]) => <label key={l} className={t === 'cb' ? 'chip' : ''}>{t === 'cb' ? <><input type="checkbox" defaultChecked={v} />{l}</> : <>{l}<input defaultValue={v} /></>}</label>)}
-    <button className="primary" onClick={() => toast('Saved')}>Save changes</button></div></section>
-}
-
 const NAV = [
   ['Create', [['Dashboard', 'home'], ['Generate Paper', 'sparkles'], ['Question Bank', 'book'], ['Templates & My Formats', 'layout']]],
   ['Manage', [['My Papers', 'file'], ['Exam Planner', 'calendar'], ['Blueprints', 'target'], ['Insights', 'chart']]],
   ['Library', [['Subjects & Chapters', 'list'], ['Favorites', 'star']]],
-  ['Account', [['Profile', 'user'], ['Notifications', 'bell'], ['Settings', 'sliders'], ['Help & Support', 'help']]]
+  ['Account', [['Profile', 'user'], ['Plans & Payment', 'card'], ['Notifications', 'bell'], ['Settings', 'sliders'], ['Help & Support', 'help']]]
 ]
 const TABS = [['Dashboard', 'home', 'Home'], ['Question Bank', 'book', 'Bank'], ['Generate Paper', 'sparkles', 'Create'], ['My Papers', 'file', 'Papers'], ['More', 'grid', 'More']]
 const TABP = TABS.map((t) => t[0])
 // Notifications is a drawer (not a route); every other nav item is a page with its own URL hash.
-const PAGES = [...NAV.flatMap(([, items]) => items.map(([t]) => t)).filter((t) => t !== 'Notifications'), 'More']
+const PAGES = [...NAV.flatMap(([, items]) => items.map(([t]) => t)).filter((t) => t !== 'Notifications'), 'More', 'Checkout']
 const slug = (t) => t.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 const BY_SLUG = Object.fromEntries(PAGES.map((t) => [slug(t), t]))
 const fromHash = () => BY_SLUG[window.location.hash.replace(/^#\/?/, '')] || 'Dashboard'
@@ -245,6 +245,7 @@ export default function App() {
   const [prefs, setPrefs] = usePersist('ep_prefs', { key: true, notif: true, medium: 'English' }), [theme, setTheme] = usePersist('ep_theme', 'system'), [seen, setSeen] = usePersist('ep_onb', false)
   const [custom, setCustom] = useState(() => { const c = read('ep_custom', []); c.forEach((q) => { if (!BANK.some((b) => b.id === q.id)) BANK.push(q) }); return c })
   const [splash, setSplash] = useState(true), [tm, setTm] = useState(''), [dlg, setDlg] = useState(null), [gq, setGq] = useState('')
+  const [user, setUser] = useState(currentUser), [bill, setBill] = usePersist('ep_sub', { plan: 'free' }), [pays, setPays] = usePersist('ep_pays', []), [order, setOrder] = useState(null)
 
   // theme: follow the phone unless the teacher forces light/dark
   useEffect(() => {
@@ -305,25 +306,44 @@ export default function App() {
   const tf = (a, s, v) => s(a.includes(v) ? a.filter((x) => x !== v) : [...a, v])
   const useT = (id) => { setP({ ...p, tpl: id }); setStep(7); go('Generate Paper'); toast('Template selected') }
   const useBp = (b) => { const full = b.board && b.std && b.subject; start({ name: b.name, marks: b.rows.reduce((a, r) => a + r.n * r.m, 0), nq: b.rows.reduce((a, r) => a + r.n, 0), types: [...new Set(b.rows.map((r) => r.type))], board: b.board, std: b.std, subject: b.subject, diff: 'Mixed' }, full ? 3 : 0); toast('Blueprint applied') }
-  const signOut = () => ask('Sign out of EduPaper AI?', () => { setSeen(false); go('Dashboard', true) })
+  const first = (user && user.name ? user.name.trim().split(/\s+/)[0] : '') || 'Teacher'
+  const onAuthed = (u, kind) => {
+    setUser(u); toast(kind === 'register' ? 'Welcome to EduPaper AI, ' + u.name.trim().split(/\s+/)[0] : 'Welcome back, ' + u.name.trim().split(/\s+/)[0])
+    try { history.replaceState({ idx: 0 }, '', '#/' + slug(pageRef.current)) } catch { /* ignore */ }
+  }
+  const signOut = () => ask('Sign out of EduPaper AI?', () => {
+    logout(); setUser(null); setNd(false); ndRef.current = false; setOrder(null); setP(blank); setStep(0)
+    pageRef.current = 'Dashboard'; setPage('Dashboard')
+  })
+  const choose = (plan, cycle) => { setOrder({ plan, cycle }); go('Checkout') }
+  const onPaid = (rec) => { // called once a payment succeeds; returns the new subscription for the receipt screen
+    const ns = newSub(rec.plan, rec.cycle, startFor(bill))
+    setBill(ns); setPays((x) => [rec, ...x]); setOrder(null); return ns
+  }
+  const plan = activePlan(bill)
   const drafts = papers.filter((x) => x.status === 'Draft'), unread = notifs.filter((x) => !x.read).length
   const upcoming = exams.filter((e) => e.date >= today()).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).slice(0, 3)
   const hr = new Date().getHours(), greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening'
   const flow = page === 'Generate Paper', sub = !TABP.includes(page)
 
+  // signed out: splash -> (first launch) onboarding -> login / register. The app itself is not rendered until there is a session.
+  if (!user) return <>
+    {splash && <Splash onDone={() => setSplash(false)} />}
+    {!splash && (seen ? <Auth onAuthed={onAuthed} /> : <Onboarding onDone={() => setSeen(true)} />)}
+  </>
+
   return <div className={'app' + (flow ? ' flow' : '')}>
     {splash && <Splash onDone={() => setSplash(false)} />}
-    {!splash && !seen && <Onboarding onDone={() => setSeen(true)} />}
     <aside className={col ? 'col' : ''}>
       <div className="brand"><img className="lg full" src={logo} alt="EduPaper AI" /><img className="lg mk" src={mark} alt="EduPaper AI" /></div>
       {NAV.map(([g, items]) => <div key={g} className="ng"><small className="ng-l">{g}</small>
-        {items.map(([t, ic]) => <button key={t} className={'nav' + (page === t ? ' on' : '')} onClick={() => go(t)} title={t} {...(t === 'Notifications' ? { 'aria-haspopup': 'dialog', 'aria-expanded': nd } : {})}><Ic n={ic} /><span>{t}</span>{t === 'Notifications' && unread > 0 && <em className="nb">{unread}</em>}</button>)}</div>)}
+        {items.map(([t, ic]) => <button key={t} className={'nav' + (page === t || (t === 'Plans & Payment' && page === 'Checkout') ? ' on' : '')} onClick={() => go(t)} title={t} {...(t === 'Notifications' ? { 'aria-haspopup': 'dialog', 'aria-expanded': nd } : {})}><Ic n={ic} /><span>{t}</span>{t === 'Notifications' && unread > 0 && <em className="nb">{unread}</em>}</button>)}</div>)}
       <button className="nav collapse" onClick={() => setCol(!col)}><Ic n={col ? 'right' : 'back'} /><span>Collapse</span></button>
     </aside>
     <main>
       <header>
         {flow ? <button className="mob hbtn" onClick={() => goBack('Dashboard')} aria-label="Close"><Ic n="x" /></button>
-          : sub ? <button className="mob hbtn" onClick={() => goBack('More')} aria-label="Back"><Ic n="back" /></button>
+          : sub ? <button className="mob hbtn" onClick={() => goBack(page === 'Checkout' ? 'Plans & Payment' : 'More')} aria-label="Back"><Ic n="back" /></button>
             : <img className="mob hlogo lg" src={mark} alt="" />}
         <b className="mob htitle">{flow ? 'New Paper' : page === 'Dashboard' ? 'EduPaper AI' : page}</b>
         <small className="desk crumb">Home / {page}</small>
@@ -334,7 +354,7 @@ export default function App() {
         <button className="primary desk" onClick={() => start()}><Ic n="plus" /> Create Paper</button>
       </header>
       <div key={page} className="page">
-        {page === 'Dashboard' && <section><div className="hero"><div><span className="eyebrow">{greet}, Teacher</span><h2>Ready to create your next question paper?</h2><p>Pick a board, choose chapters and export a print-ready paper in minutes.</p><button className="cta" onClick={() => start()}><Ic n="sparkles" /> Generate New Paper</button></div><img className="hm" src={mark} alt="" /></div>
+        {page === 'Dashboard' && <section><div className="hero"><div><span className="eyebrow">{greet}, {first}</span><h2>Ready to create your next question paper?</h2><p>Pick a board, choose chapters and export a print-ready paper in minutes.</p><button className="cta" onClick={() => start()}><Ic n="sparkles" /> Generate New Paper</button></div><img className="hm" src={mark} alt="" /></div>
           <div className="grid sp"><button className="card pick" onClick={() => start()}><span className="ci"><Ic n="sparkles" s={22} /></span>Generate New Paper<small>AI + question bank</small></button>
             <button className="card pick" onClick={() => go('Templates & My Formats')}><span className="ci"><Ic n="upload" s={22} /></span>Upload My Format<small>Reuse your school format</small></button>
             <button className="card pick" onClick={() => go('Exam Planner')}><span className="ci"><Ic n="calendar" s={22} /></span>Exam Planner<small>{upcoming.length} upcoming exam{upcoming.length === 1 ? '' : 's'}</small></button>
@@ -355,10 +375,12 @@ export default function App() {
         {page === 'Insights' && <Insights papers={papers} />}
         {page === 'Subjects & Chapters' && <Subj />}
         {page === 'Favorites' && <Favorites favQ={favQ} tfQ={(id) => tf(favQ, setFavQ, id)} favT={favT} tfT={(id) => tf(favT, setFavT, id)} addQ={addQ} useT={useT} go={go} />}
-        {page === 'Profile' && <Form title="Profile" toast={toast} fields={[['Name', 'Teacher Name'], ['Email', 'teacher@school.in'], ['School / institute', 'Demo Public School'], ['Default board', 'GSEB'], ['Default standard', 'Std 10'], ['Preferred language', 'English']]} />}
+        {page === 'Profile' && <ProfilePage key={user.id} user={user} setUser={setUser} plan={plan} go={go} ask={ask} signOut={signOut} toast={toast} />}
+        {page === 'Plans & Payment' && <PlansPage sub={bill} setSub={setBill} pays={pays} choose={choose} ask={ask} toast={toast} />}
+        {page === 'Checkout' && <CheckoutPage order={order} user={user} onPaid={onPaid} go={go} />}
         {page === 'Settings' && <SettingsPage theme={theme} setTheme={setTheme} prefs={prefs} setPrefs={setPrefs} toast={toast} />}
         {page === 'Help & Support' && <Help toast={toast} />}
-        {page === 'More' && <More go={go} nav={NAV} skip={['Dashboard', 'Generate Paper', 'Question Bank', 'My Papers']} unread={unread} signOut={signOut} />}
+        {page === 'More' && <More go={go} nav={NAV} skip={['Dashboard', 'Generate Paper', 'Question Bank', 'My Papers']} unread={unread} signOut={signOut} user={user} plan={plan} />}
       </div>
     </main>
     <nav className="tabbar" aria-label="Primary">{TABS.map(([pg, ic, l]) => <button key={pg} className={(pg === 'More' ? sub || page === 'More' : page === pg) ? 'on ' + (pg === 'Generate Paper' ? 'mid' : '') : pg === 'Generate Paper' ? 'mid' : ''} onClick={() => (pg === 'Generate Paper' ? start() : go(pg))} aria-label={l}><span className="ti"><Ic n={ic} s={pg === 'Generate Paper' ? 24 : 22} /></span><em>{l}</em></button>)}</nav>
