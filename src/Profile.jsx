@@ -3,6 +3,7 @@ import { Ic, Badge } from './ui.jsx'
 import { Field, PwInput, Meter } from './Auth.jsx'
 import { updateProfile, changePassword, isPhone, pwProblem, AuthError } from './auth.js'
 import { CUR, MEDIA } from './data.js'
+import { PLANS } from './payments.js'
 
 export default function ProfilePage({ user, setUser, plan, go, signOut, toast }) {
   const pr = user.profile || {}
@@ -35,7 +36,7 @@ export default function ProfilePage({ user, setUser, plan, go, signOut, toast })
     <div className="card prof-h">
       <span className="av">{user.name.trim().charAt(0).toUpperCase()}</span>
       <div className="grow"><b>{user.name}</b><small>{user.email}</small></div>
-      <Badge c={plan === 'pro' ? 'ai' : ''}>{plan === 'pro' ? 'Pro' : 'Free plan'}</Badge>
+      <Badge c={plan !== 'free' ? 'ai' : ''}>{plan !== 'free' ? PLANS[plan].name : 'Free plan'}</Badge>
       <button onClick={() => go('Plans & Payment')}><Ic n="card" s={16} />Plans</button>
     </div>
     <form className="card form" onSubmit={save} noValidate>

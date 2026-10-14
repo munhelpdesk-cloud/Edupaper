@@ -32,7 +32,7 @@ export const Meter = ({ v }) => {
   return v ? <div className="pwm" aria-live="polite"><span aria-hidden="true">{[1, 2, 3, 4].map((i) => <i key={i} className={i <= s ? 's' + s : ''} />)}</span><small>Password strength: {['', 'Weak', 'Fair', 'Good', 'Strong'][s]}</small></div> : null
 }
 
-export default function Auth({ onAuthed, start = 'login' }) {
+export default function Auth({ onAuthed, onClose, reason = '', start = 'login' }) {
   const [mode, setMode] = useState(start)
   const [f, setF] = useState({ name: '', email: '', phone: '', school: '', password: '', confirm: '', remember: true, terms: false })
   const [err, setErr] = useState({}), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [note, setNote] = useState('')
@@ -75,8 +75,10 @@ export default function Auth({ onAuthed, start = 'login' }) {
     </div>
     <div className="auth-pane" role="main">
       <div className="auth-card">
+        {onClose && <button type="button" className="ghost auth-x" onClick={onClose}><Ic n="back" s={16} />Continue as guest</button>}
         <img className="lg auth-mark" src={mark} alt="EduPaper AI" />
         <h1>{title}</h1><p className="lead">{sub}</p>
+        {reason && mode !== 'forgot' && !note && <div className="ok" role="status">{reason}</div>}
         {note && <div className="ok" role="status">{note}</div>}
         {msg && <div className="fa" role="alert">{msg}</div>}
         <form onSubmit={submit} noValidate>

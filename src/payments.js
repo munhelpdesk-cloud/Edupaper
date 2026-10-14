@@ -10,8 +10,13 @@ export const PLANS = {
   free: { id: 'free', name: 'Free', tag: 'For trying EduPaper', price: { monthly: 0, yearly: 0 },
     features: ['5 question papers per month', 'Full question bank', 'Built-in templates', 'DOCX and PDF export'] },
   pro: { id: 'pro', name: 'Pro', tag: 'For teachers who set papers every week', price: { monthly: 199, yearly: 1499 },
-    features: ['Unlimited question papers', 'AI-generated questions', 'Upload and reuse your school formats', 'Blueprints and Exam Planner', 'Priority support'] }
+    features: ['Unlimited question papers', 'AI-generated questions', 'Upload and reuse your school formats', 'Blueprints and Exam Planner', 'Priority support'] },
+  school: { id: 'school', name: 'School', tag: 'For schools and coaching classes', price: { monthly: 499, yearly: 3999 },
+    features: ['Everything in Pro', 'Up to 5 teacher logins', 'Shared question bank and formats', 'School logo on every paper', 'Dedicated support'] }
 }
+export const PAID = ['pro', 'school']
+/** biggest yearly discount across the paid plans, for the “Save up to X%” badge */
+export const bestSaving = () => Math.max(...PAID.map((id) => yearlySaving(PLANS[id])))
 export const CYCLES = { monthly: { label: 'Monthly', per: 'month', months: 1 }, yearly: { label: 'Yearly', per: 'year', months: 12 } }
 export const yearlySaving = (p = PLANS.pro) => Math.round((1 - p.price.yearly / (p.price.monthly * 12)) * 100)
 
@@ -61,5 +66,5 @@ export function processPayment({ amount, method, f }) {
 
 export const DEMO = true // shows the "demo mode" notice on checkout; set to false once a real gateway is connected
 export const fmtDate = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-/** start date for a new purchase: a cancelled-but-still-active Pro plan renews from its end date, otherwise from today */
-export const startFor = (sub) => (sub && sub.plan === 'pro' && !sub.autoRenew && sub.renews >= today() ? sub.renews : today())
+/** start date for a new purchase: a cancelled-but-still-active plan (renewing the same plan) renews from its end date, otherwise from today */
+export const startFor = (sub, plan) => (sub && sub.plan === plan && !sub.autoRenew && sub.renews >= today() ? sub.renews : today())

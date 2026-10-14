@@ -2,18 +2,31 @@ import { useState } from 'react'
 import mark from './assets/mark.png'
 import { Ic, Modal, Badge, Thumb, M, Empty, Toggle, Seg, today, daysTo, when } from './ui.jsx'
 import { BANK, TEMPLATES, TYPES, SUBJECTS, MEDIA, FAQ } from './data.js'
+import { PLANS } from './payments.js'
 
 const MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const PAL = ['#1D6BF3', '#7C3AED', '#F59E0B', '#059669', '#EC4899', '#06B6D4']
 
 /* ---------- Exam planner ---------- */
-export function ExamCard({ e, onOpen, onDel }) {
-  const d = new Date(e.date + 'T00:00:00'), n = daysTo(e.date)
-  return <div className="card exam">
+const fmt12 = (t = '09:00') => { const [h, m] = t.split(':').map(Number); return (h % 12 || 12) + ':' + String(m || 0).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM') }
+const tone = (n) => (n < 0 ? 'past' : n <= 2 ? 'soon' : 'later')
+
+export function ExamCard({ e, onOpen, onEdit, onDel, onPick }) {
+  const d = new Date(e.date + 'T00:00:00'), n = daysTo(e.date), acts = onOpen || onEdit || onDel
+  return <div className={'card exam ' + tone(n)}>
     <div className="dt"><b>{d.getDate()}</b><span>{d.toLocaleString('en', { month: 'short' })}</span></div>
-    <div className="grow"><b>{e.title}</b><small>{e.subject} · {e.std} · {e.time}</small>
-      <div className="bds"><Badge c={n < 0 ? '' : n <= 2 ? 'warn' : 'ai'}>{when(e.date)}</Badge>{e.paper && <Badge c="bk">Paper linked</Badge>}</div></div>
-    <div className="exam-a">{onOpen && e.paper && <button onClick={onOpen}>Open paper</button>}{onDel && <button className="hbtn dng" onClick={onDel} aria-label="Delete exam"><Ic n="trash" s={16} /></button>}</div>
+    <div className="grow ex-main">
+      <b className="ex-t">{e.title}</b>
+      <small className="ex-m"><span><Ic n="clock" s={13} />{fmt12(e.time)}</span><span>{e.subject} · {e.std}</span></small>
+      <div className="bds"><Badge c={n < 0 ? '' : n <= 2 ? 'warn' : 'ai'}>{when(e.date)}</Badge>{e.paper ? <Badge c="bk">Paper linked</Badge> : <Badge>No paper yet</Badge>}</div>
+    </div>
+    {(acts || onPick) && <div className="exam-a">
+      {onPick && <button className="ghost" onClick={onPick}>View day</button>}
+      {onOpen && e.paper && <button className="primary" onClick={onOpen}>Open paper</button>}
+      <span className="grow" />
+      {onEdit && <button className="hbtn" onClick={onEdit} aria-label="Edit exam"><Ic n="edit" s={16} /></button>}
+      {onDel && <button className="hbtn dng" onClick={onDel} aria-label="Delete exam"><Ic n="trash" s={16} /></button>}
+    </div>}
   </div>
 }
 
@@ -24,29 +37,48 @@ export function Planner({ exams, setExams, papers, openPaper, ask, toast }) {
   const ds = (d) => `${ym.y}-${String(ym.m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
   const cells = [...Array(lead).fill(null), ...Array.from({ length: dim }, (_, i) => i + 1)]
   const shift = (k) => { const d = new Date(ym.y, ym.m + k, 1); setYm({ y: d.getFullYear(), m: d.getMonth() }) }
-  const dayEx = exams.filter((e) => e.date === sel)
-  const upcoming = exams.filter((e) => daysTo(e.date) >= 0).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
-  const add = (date) => setForm({ title: '', subject: 'Mathematics', std: 'Std 10', date, time: '09:00', paper: '' })
+  const goTo = (date) => { const d = new Date(date + 'T00:00:00'); setYm({ y: d.getFullYear(), m: d.getMonth() }); setSel(date) }
+  const by = (a, b) => (a.date + a.time).localeCompare(b.date + b.time)
+  const dayEx = exams.filter((e) => e.date === sel).sort(by)
+  const upcoming = exams.filter((e) => daysTo(e.date) >= 0).sort(by)
+  const week = upcoming.filter((e) => daysTo(e.date) <= 7).length, next = upcoming[0]
+  const selD = new Date(sel + 'T00:00:00'), isToday = sel === today()
+  const blank = (date) => ({ id: '', title: '', subject: 'Mathematics', std: 'Std 10', date, time: '09:00', paper: '' })
   const set = (o) => setForm({ ...form, ...o })
-  const save = () => { if (!form.title.trim()) return toast('Please enter an exam title'); setExams([...exams, { ...form, id: 'e' + Date.now() }]); setSel(form.date); setForm(null); toast('Exam scheduled') }
-  const card = (e) => <ExamCard key={e.id} e={e} onOpen={() => { const p = papers.find((x) => x.id === e.paper); p ? openPaper(p) : toast('Linked paper not found') }} onDel={() => ask('Delete this exam?', () => setExams(exams.filter((x) => x.id !== e.id)))} />
+  const save = () => {
+    if (!form.title.trim()) return toast('Please enter an exam title')
+    if (!form.date) return toast('Please choose a date')
+    const e = { ...form, title: form.title.trim() }
+    setExams(form.id ? exams.map((x) => (x.id === form.id ? e : x)) : [...exams, { ...e, id: 'e' + Date.now() }])
+    goTo(form.date); toast(form.id ? 'Exam updated' : 'Exam scheduled'); setForm(null)
+  }
+  const card = (e, pick) => <ExamCard key={e.id} e={e} onPick={pick ? () => goTo(e.date) : undefined} onOpen={() => { const p = papers.find((x) => x.id === e.paper); p ? openPaper(p) : toast('Linked paper not found') }} onEdit={() => setForm({ ...blank(e.date), ...e })} onDel={() => ask('Delete this exam?', () => setExams(exams.filter((x) => x.id !== e.id)))} />
   return <section>
-    <div className="row wrap"><h2>Exam Planner</h2><button className="primary" onClick={() => add(sel)}><Ic n="plus" /> Schedule exam</button></div>
-    <div className="plan">
+    <div className="row wrap"><h2>Exam Planner</h2><button className="primary" onClick={() => setForm(blank(sel))}><Ic n="plus" /> Schedule exam</button></div>
+    <div className="sumline"><span><b>{upcoming.length}</b>upcoming</span><span><b>{week}</b>in the next 7 days</span>{next && <span>Next: {next.title}, {when(next.date).toLowerCase()} at {fmt12(next.time)}</span>}</div>
+    <div className="pl">
       <div className="card cal">
-        <div className="cal-h"><button className="hbtn" onClick={() => shift(-1)} aria-label="Previous month"><Ic n="back" /></button><b>{MON[ym.m]} {ym.y}</b><button className="hbtn" onClick={() => shift(1)} aria-label="Next month"><Ic n="right" /></button></div>
-        <div className="cal-g">{['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((w, i) => <span key={i} className="cal-w">{w}</span>)}
-          {cells.map((d, i) => d ? <button key={i} className={'cal-d' + (ds(d) === today() ? ' today' : '') + (ds(d) === sel ? ' sel' : '')} onClick={() => setSel(ds(d))} aria-label={ds(d)}>{d}{exams.some((e) => e.date === ds(d)) && <i />}</button> : <span key={i} />)}</div>
+        <div className="cal-h">
+          <button className="hbtn" onClick={() => shift(-1)} aria-label="Previous month"><Ic n="back" /></button>
+          <b>{MON[ym.m]} {ym.y}</b>
+          <button className="hbtn" onClick={() => shift(1)} aria-label="Next month"><Ic n="right" /></button>
+        </div>
+        <div className="cal-g">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((w) => <span key={w} className="cal-w">{w}</span>)}
+          {cells.map((d, i) => { const k = d && exams.filter((e) => e.date === ds(d)).length
+            return d ? <button key={i} className={'cal-d' + (ds(d) === today() ? ' today' : '') + (ds(d) === sel ? ' sel' : '') + (k ? ' has' : '')} onClick={() => setSel(ds(d))} aria-label={ds(d) + (k ? ', ' + k + ' exam' + (k > 1 ? 's' : '') : '')} aria-pressed={ds(d) === sel}>{d}{k > 0 && <i className="cdots">{Array.from({ length: Math.min(k, 3) }, (_, j) => <u key={j} />)}</i>}</button> : <span key={i} />
+          })}</div>
+        <div className="cal-f"><span className="lgd"><span><u className="lg-ex" />Exam day</span><span><u className="lg-td" />Today</span></span><button className="ghost" onClick={() => goTo(today())}>Today</button></div>
       </div>
-      <div>
-        <h3 className="h0">{new Date(sel + 'T00:00:00').toLocaleDateString('en', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
-        {dayEx.length ? dayEx.map(card) : <Empty icon="calendar" title="No exams on this day" sub="Tap “Schedule exam” to add one." />}
-        <h3>Upcoming</h3>
-        {upcoming.length ? upcoming.slice(0, 5).map(card) : <Empty icon="calendar" title="Nothing scheduled" sub="Your upcoming exams will show here." />}
+      <div className="pl-side">
+        <div className="pl-h"><div><h3 className="h0">{isToday ? 'Today' : selD.toLocaleDateString('en', { weekday: 'long' })}</h3><small>{selD.toLocaleDateString('en', { day: 'numeric', month: 'long', year: 'numeric' })}</small></div>
+          <button onClick={() => setForm(blank(sel))}><Ic n="plus" s={16} /> Add exam</button></div>
+        {dayEx.length ? dayEx.map((e) => card(e)) : <div className="card pl-none"><span className="ci sm"><Ic n="calendar" /></span><span className="grow"><b>No exams on this day</b><small>Pick a date with a dot, or add an exam here.</small></span></div>}
+        <h3>Coming up</h3>
+        {upcoming.length ? upcoming.slice(0, 5).map((e) => card(e, e.date !== sel)) : <Empty icon="calendar" title="Nothing scheduled" sub="Your upcoming exams will show here."><button className="primary gap" onClick={() => setForm(blank(sel))}>Schedule your first exam</button></Empty>}
       </div>
     </div>
-    {form && <Modal title="Schedule exam" onClose={() => setForm(null)}>
-      <label>Exam title<input value={form.title} onChange={(e) => set({ title: e.target.value })} placeholder="e.g. Unit Test 2 - Science" /></label>
+    {form && <Modal title={form.id ? 'Edit exam' : 'Schedule exam'} onClose={() => setForm(null)}>
+      <label>Exam title<input value={form.title} onChange={(e) => set({ title: e.target.value })} placeholder="e.g. Unit Test 2 - Science" autoFocus /></label>
       <div className="fgrid">
         <label>Subject<select value={form.subject} onChange={(e) => set({ subject: e.target.value })}>{SUBJECTS.map((s) => <option key={s}>{s}</option>)}</select></label>
         <label>Class<select value={form.std} onChange={(e) => set({ std: e.target.value })}>{['Std 9', 'Std 10', 'Std 11', 'Std 12', 'Class 9', 'Class 10'].map((s) => <option key={s}>{s}</option>)}</select></label>
@@ -54,7 +86,7 @@ export function Planner({ exams, setExams, papers, openPaper, ask, toast }) {
         <label>Time<input type="time" value={form.time} onChange={(e) => set({ time: e.target.value })} /></label>
       </div>
       <label>Link a paper (optional)<select value={form.paper} onChange={(e) => set({ paper: e.target.value })}><option value="">— None —</option>{papers.filter((p) => p.status !== 'Archived').map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-      <button className="primary" onClick={save}>Save exam</button>
+      <button className="primary" onClick={save}>{form.id ? 'Save changes' : 'Save exam'}</button>
     </Modal>}
   </section>
 }
@@ -154,8 +186,10 @@ export function Help({ toast }) {
 }
 
 /* ---------- Settings ---------- */
-export function SettingsPage({ theme, setTheme, prefs, setPrefs, toast }) {
+export function SettingsPage({ theme, setTheme, prefs, setPrefs, toast, sendTest }) {
   const up = (o) => { setPrefs({ ...prefs, ...o }); toast('Saved') }
+  const [tb, setTb] = useState(false), [tr, setTr] = useState('')
+  const test = async () => { if (tb) return; setTb(true); setTr(''); setTr(await sendTest()); setTb(false) }
   return <section><h2>Settings</h2>
     <h4>Appearance</h4>
     <div className="card"><Seg v={theme} set={setTheme} items={[['system', 'System', 'phone'], ['light', 'Light', 'sun'], ['dark', 'Dark', 'moon']]} />
@@ -164,17 +198,24 @@ export function SettingsPage({ theme, setTheme, prefs, setPrefs, toast }) {
     <div className="card"><Toggle on={prefs.key} set={(v) => up({ key: v })} label="Include answer key" sub="Added to every new paper by default" />
       <label className="gap">Default question language<select value={prefs.medium} onChange={(e) => up({ medium: e.target.value })}>{MEDIA.map((m) => <option key={m}>{m}</option>)}</select></label></div>
     <h4>Notifications</h4>
-    <div className="card"><Toggle on={prefs.notif} set={(v) => up({ notif: v })} label="Reminders" sub="Exam reminders and unfinished drafts" /></div>
+    <div className="card"><Toggle on={prefs.notif} set={(v) => up({ notif: v })} label="Reminders" sub="Exam reminders and unfinished drafts" />
+      <hr /><div className="row wrap tn"><span className="grow"><b>Test notifications</b><small>Sends one test alert to the bell and to your device.</small></span>
+        <button className="primary" onClick={test} disabled={tb}><Ic n="bell" s={16} />{tb ? 'Sending…' : 'Send test notification'}</button></div>
+      {tr === 'sent' && <div className="ok" role="status">Sent. Check your notification shade and the bell icon.</div>}
+      {tr === 'denied' && <div className="fa" role="status">Notifications are blocked for this app. The test still reached the bell; allow notifications in your phone settings to see system alerts.</div>}
+      {tr === 'unsupported' && <div className="fa" role="status">The test reached the bell. System alerts aren’t available on this browser or device.</div>}</div>
   </section>
 }
 
 /* ---------- More (mobile hub) ---------- */
-export function More({ go, nav, skip, unread, signOut, user, plan }) {
-  const nm = (user && user.name) || 'Teacher'
+export function More({ go, nav, skip, unread, signOut, user, plan, signIn }) {
+  const nm = user ? user.name : 'Guest'
   return <section>
-    <button className="card prof" onClick={() => go('Profile')}><span className="av">{nm.trim().charAt(0).toUpperCase()}</span><span className="grow"><b>{nm}</b><small>{user ? user.email : ''}</small></span>{plan === 'pro' && <Badge c="ai">Pro</Badge>}<Ic n="right" /></button>
+    <button className="card prof" onClick={() => (user ? go('Profile') : signIn())}><span className="av">{nm.trim().charAt(0).toUpperCase()}</span><span className="grow"><b>{nm}</b><small>{user ? user.email : 'Sign in to create papers'}</small></span>{plan !== 'free' && <Badge c="ai">{PLANS[plan].name}</Badge>}<Ic n="right" /></button>
     {nav.map(([g, items]) => { const it = items.filter(([t]) => !skip.includes(t)); return it.length ? <div key={g}><h4>{g}</h4><div className="card list">{it.map(([t, ic]) => <button key={t} className="li" onClick={() => go(t)}><span className="ci sm"><Ic n={ic} /></span><span className="grow">{t}</span>{t === 'Notifications' && unread > 0 && <Badge c="warn">{unread}</Badge>}<Ic n="right" s={16} /></button>)}</div></div> : null })}
-    <div className="card list"><button className="li dng" onClick={signOut}><span className="ci sm"><Ic n="logout" /></span><span className="grow">Sign out</span></button></div>
+    <div className="card list">{user
+      ? <button className="li dng" onClick={signOut}><span className="ci sm"><Ic n="logout" /></span><span className="grow">Sign out</span></button>
+      : <button className="li" onClick={signIn}><span className="ci sm"><Ic n="user" /></span><span className="grow">Sign in or create account</span></button>}</div>
   </section>
 }
 
@@ -187,7 +228,7 @@ const SL = [
 export function Onboarding({ onDone }) {
   const [i, setI] = useState(0), s = SL[i], last = i === SL.length - 1
   return <div className="onb">
-    <div className="row"><img className="lg onb-logo" src={mark} alt="" /><button className="ghost" onClick={onDone}>Skip</button></div>
+    <div className="row onb-top"><span className="onb-step">{i + 1} of {SL.length}</span><button className="ghost" onClick={onDone}>Skip</button></div>
     <div className="onb-art" key={i}><div className="onb-orb"><Ic n={s.ic} s={64} /></div></div>
     <div className="onb-txt" key={'t' + i}><h1>{s.t}</h1><p>{s.d}</p></div>
     <div className="dots">{SL.map((_, k) => <i key={k} className={k === i ? 'on' : ''} />)}</div>

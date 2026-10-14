@@ -1,37 +1,38 @@
 import { useState, useRef, useEffect } from 'react'
 import { Ic, Badge, Seg, Empty, today } from './ui.jsx'
 import { Field } from './Auth.jsx'
-import { PLANS, CYCLES, BANKS, DEMO, yearlySaving, rupees, breakdown, activePlan, fmtDate, validate, methodLabel, processPayment, brand, fmtCard, fmtExp } from './payments.js'
+import { PLANS, CYCLES, BANKS, DEMO, bestSaving, rupees, breakdown, activePlan, fmtDate, validate, methodLabel, processPayment, brand, fmtCard, fmtExp } from './payments.js'
 
 /* ================= Plans & Payment ================= */
+const BADGE = { free: ['', 'Starter'], pro: ['ai', 'Most popular'], school: ['bk', 'For schools'] }
 export function PlansPage({ sub, setSub, pays, choose, ask, toast }) {
   const [cycle, setCycle] = useState(sub.cycle || 'yearly')
-  const act = activePlan(sub), pro = act === 'pro', renewing = pro && sub.autoRenew
-  const cancel = () => ask('Cancel renewal? Pro stays active until ' + fmtDate(sub.renews) + ', then you move to Free.', () => { setSub({ ...sub, autoRenew: false }); toast('Renewal cancelled') })
+  const act = activePlan(sub), paid = act !== 'free', cur = PLANS[act], renewing = paid && sub.autoRenew
+  const cancel = () => ask('Cancel renewal? ' + cur.name + ' stays active until ' + fmtDate(sub.renews) + ', then you move to Free.', () => { setSub({ ...sub, autoRenew: false }); toast('Renewal cancelled') })
   return <section><h2>Plans & Payment</h2>
-    <div className={'card cur-plan' + (pro ? ' pro' : '')}>
-      <span className="ci"><Ic n={pro ? 'zap' : 'sparkles'} s={22} /></span>
+    <div className={'card cur-plan' + (paid ? ' pro' : '')}>
+      <span className="ci"><Ic n={paid ? 'zap' : 'sparkles'} s={22} /></span>
       <div className="grow">
-        <b>{pro ? 'EduPaper Pro · ' + CYCLES[sub.cycle].label : 'Free plan'}</b>
-        <small>{!pro ? 'You’re on the Free plan. Upgrade for unlimited papers.' : renewing ? 'Renews on ' + fmtDate(sub.renews) + ' · ' + rupees(PLANS.pro.price[sub.cycle]) : 'Won’t renew. Active until ' + fmtDate(sub.renews) + '.'}</small></div>
-      {pro && (renewing ? <button className="dng" onClick={cancel}>Cancel renewal</button> : <button onClick={() => { setSub({ ...sub, autoRenew: true }); toast('Renewal resumed') }}>Resume renewal</button>)}
+        <b>{paid ? 'EduPaper ' + cur.name + ' · ' + CYCLES[sub.cycle].label : 'Free plan'}</b>
+        <small>{!paid ? 'You’re on the Free plan. Upgrade for unlimited papers.' : renewing ? 'Renews on ' + fmtDate(sub.renews) + ' · ' + rupees(cur.price[sub.cycle]) : 'Won’t renew. Active until ' + fmtDate(sub.renews) + '.'}</small></div>
+      {paid && (renewing ? <button className="dng" onClick={cancel}>Cancel renewal</button> : <button onClick={() => { setSub({ ...sub, autoRenew: true }); toast('Renewal resumed') }}>Resume renewal</button>)}
     </div>
     <div className="row wrap plan-h"><h3 className="h0">Choose a plan</h3>
-      <div className="seg cyc" role="group" aria-label="Billing period">{Object.entries(CYCLES).map(([k, c]) => <button key={k} className={cycle === k ? 'on' : ''} aria-pressed={cycle === k} onClick={() => setCycle(k)}>{c.label}{k === 'yearly' && <Badge c="bk">Save {yearlySaving()}%</Badge>}</button>)}</div></div>
-    <div className="grid plans">{[PLANS.free, PLANS.pro].map((p) => {
-      const amt = p.price[cycle], isPro = p.id === 'pro'
-      return <div key={p.id} className={'card plan' + (isPro ? ' hot' : '') + (act === p.id ? ' cur' : '')}>
-        {isPro ? <Badge c="ai">Most popular</Badge> : <Badge>Starter</Badge>}
+      <div className="seg cyc" role="group" aria-label="Billing period">{Object.entries(CYCLES).map(([k, c]) => <button key={k} className={cycle === k ? 'on' : ''} aria-pressed={cycle === k} onClick={() => setCycle(k)}>{c.label}{k === 'yearly' && <Badge c="bk">Save up to {bestSaving()}%</Badge>}</button>)}</div></div>
+    <div className="grid plans">{Object.values(PLANS).map((p) => {
+      const amt = p.price[cycle], isPaid = p.id !== 'free', here = act === p.id, [bc, bl] = BADGE[p.id]
+      return <div key={p.id} className={'card plan' + (p.id === 'pro' ? ' hot' : '') + (here ? ' cur' : '')}>
+        <Badge c={bc}>{bl}</Badge>
         <h3 className="h0">{p.name}</h3><small>{p.tag}</small>
         <div className="price"><b>{rupees(amt)}</b><span>{amt ? '/ ' + CYCLES[cycle].per : 'free forever'}</span></div>
-        {isPro && cycle === 'yearly' && <small>{rupees(Math.round(amt / 12))} a month, billed yearly</small>}
+        {isPaid && cycle === 'yearly' && <small>{rupees(Math.round(amt / 12))} a month, billed yearly</small>}
         <ul className="feat">{p.features.map((x) => <li key={x}><Ic n="check" s={16} />{x}</li>)}</ul>
-        {isPro
-          ? <button className="primary big" disabled={renewing} onClick={() => choose('pro', cycle)}>{renewing ? 'Current plan' : pro ? 'Renew Pro' : 'Upgrade to Pro'}</button>
-          : <button className="big" disabled={!pro || !renewing} onClick={cancel}>{!pro ? 'Current plan' : renewing ? 'Downgrade to Free' : 'Downgrade scheduled'}</button>}
+        {isPaid
+          ? <button className={'big' + (p.id === 'pro' ? ' primary' : '')} disabled={here && renewing} onClick={() => choose(p.id, cycle)}>{here ? (renewing ? 'Current plan' : 'Renew ' + p.name) : paid ? 'Switch to ' + p.name : 'Upgrade to ' + p.name}</button>
+          : <button className="big" disabled={!paid || !renewing} onClick={cancel}>{!paid ? 'Current plan' : renewing ? 'Downgrade to Free' : 'Downgrade scheduled'}</button>}
       </div>
     })}</div>
-    <small className="gap">Prices include 18% GST. Cancel anytime from this page.</small>
+    <small className="gap">Prices include 18% GST. Switching plans starts a new billing period today. Cancel anytime from this page.</small>
     <h3>Payment history</h3>
     {!pays.length ? <Empty icon="card" title="No payments yet" sub="Your receipts will appear here after your first purchase." />
       : <div className="card list">{pays.map((r) => <div key={r.id} className="li pay">
