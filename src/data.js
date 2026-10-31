@@ -1,6 +1,6 @@
 // ALL DUMMY DATA - replace with real database later.
 export const MEDIA = ['English', 'Gujarati', 'Hindi']
-export const TYPES = ['MCQ', 'True/False', 'Fill in the blanks', 'Very Short', 'Short', 'Long', 'Numerical', 'Equation', 'Diagram', 'Case-based']
+export const TYPES = ['MCQ', 'Multiple Select', 'True/False', 'Fill in the blanks', 'Match the Following', 'One Word', 'Very Short', 'Short', 'Long', 'Numerical', 'Equation', 'Assertion-Reason', 'Diagram', 'Case-based', 'Passage-based', 'Practical']   // same codes as the admin panel
 const M10 = {
   Mathematics: { 'Real Numbers': ["Euclid's Lemma", 'HCF & LCM'], Polynomials: ['Zeroes', 'Relations'], 'Quadratic Equations': ['Roots', 'Discriminant'] },
   Science: { 'Chemical Reactions': ['Balancing', 'Types'], Light: ['Reflection', 'Refraction'], 'Life Processes': ['Nutrition', 'Respiration'] }
@@ -88,3 +88,6 @@ export const PATTERNS = [
   { id: 'ut25', board: '', label: 'Unit test, 25 marks', note: '1 hour · MCQ, short and long answers', marks: 25, mins: 60, nq: 12, types: ['MCQ', 'Short', 'Long'] },
   { id: 'wk20', board: '', label: 'Weekly test, 20 marks', note: '45 minutes · MCQ and short answers', marks: 20, mins: 45, nq: 10, types: ['MCQ', 'Short'] }
 ]
+
+/** Questions from the admin panel carry board / class / subject. Chapter names repeat across boards ("Real Numbers"), so lookups must be scoped. Demo questions have no board and always match. */
+export const inScope = (x, board, std, sub) => (!x.board || !board || x.board === board) && (!x.std || !std || x.std === std) && (!x.sub || !sub || x.sub === sub)

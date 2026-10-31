@@ -3,9 +3,11 @@ import { Ic, Badge } from './ui.jsx'
 import { Field, PwInput, Meter } from './Auth.jsx'
 import { updateProfile, changePassword, isPhone, pwProblem, AuthError } from './auth.js'
 import { CUR, MEDIA } from './data.js'
+import { cloud, useCloud, syncNow } from './cloud.js'
 import { PLANS } from './payments.js'
 
 export default function ProfilePage({ user, setUser, plan, go, signOut, toast }) {
+  useCloud()
   const pr = user.profile || {}
   const [f, setF] = useState({ name: user.name, phone: user.phone, school: user.school, board: pr.board || 'GSEB', std: pr.std || 'Std 10', lang: pr.lang || 'English' })
   const [err, setErr] = useState({}), [pw, setPw] = useState({ current: '', next: '', confirm: '' }), [pe, setPe] = useState({}), [busy, setBusy] = useState(false)
@@ -46,7 +48,7 @@ export default function ProfilePage({ user, setUser, plan, go, signOut, toast })
         <Field id="pf-phone" label="Mobile" err={err.phone}><input id="pf-phone" type="tel" inputMode="tel" value={f.phone} onChange={(e) => set({ phone: e.target.value })} autoComplete="tel" aria-invalid={!!err.phone} /></Field>
         <Field id="pf-school" label="School / institute"><input id="pf-school" value={f.school} onChange={(e) => set({ school: e.target.value })} autoComplete="organization" /></Field></div>
       <div className="f3">
-        <Field id="pf-board" label="Default board"><select id="pf-board" value={f.board} onChange={(e) => set({ board: e.target.value, std: Object.keys(CUR[e.target.value])[0] })}>{Object.keys(CUR).map((b) => <option key={b}>{b}</option>)}</select></Field>
+        <Field id="pf-board" label="Default board"><select id="pf-board" value={f.board} onChange={(e) => set({ board: e.target.value, std: Object.keys(CUR[e.target.value] || {})[0] || '' })}>{Object.keys(CUR).map((b) => <option key={b}>{b}</option>)}</select></Field>
         <Field id="pf-std" label="Default standard"><select id="pf-std" value={f.std} onChange={(e) => set({ std: e.target.value })}>{stds.map((x) => <option key={x}>{x}</option>)}</select></Field>
         <Field id="pf-lang" label="Preferred language"><select id="pf-lang" value={f.lang} onChange={(e) => set({ lang: e.target.value })}>{MEDIA.map((m) => <option key={m}>{m}</option>)}</select></Field></div>
       <button className="primary" type="submit" disabled={!dirty}>Save changes</button>
@@ -59,6 +61,15 @@ export default function ProfilePage({ user, setUser, plan, go, signOut, toast })
       <Field id="pw-conf" label="Confirm new password" err={pe.confirm}><PwInput id="pw-conf" value={pw.confirm} onChange={(v) => { setPw({ ...pw, confirm: v }); setPe({}) }} auto="new-password" err={pe.confirm} /></Field>
       <button type="submit" className="primary" disabled={busy || !pw.current || !pw.next}>{busy ? 'Updating…' : 'Update password'}</button>
     </form>
+    <div className="card form sync" aria-live="polite">
+      <h3 className="h0">Content updates</h3>
+      {!cloud.enabled ? <p><small>Not connected to the EduPaper server, so the app uses its built-in sample syllabus and questions.</small></p> : <>
+        <p><b>{{ ok: 'Up to date', syncing: 'Updating…', cached: 'Using the copy saved on this device', error: 'Could not update', idle: 'Waiting to update' }[cloud.status]}</b></p>
+        <p><small>{cloud.liveSyllabus ? `${cloud.boards} boards · ${cloud.chapters} chapters` : 'Sample syllabus'} · {cloud.liveQuestions ? `${cloud.questions} questions from the server` : 'sample questions'}{cloud.syncedAt ? ` · last updated ${new Date(cloud.syncedAt).toLocaleString('en-IN')}` : ''}</small></p>
+        {cloud.qNote && <p><small>{cloud.qNote}</small></p>}
+        {cloud.error && <p role="alert" className="ferr">{cloud.error}</p>}
+        <button type="button" disabled={cloud.status === 'syncing'} onClick={() => syncNow().then((c) => toast(c.status === 'ok' ? 'Content updated' : 'Could not update'))}>Update now</button></>}
+    </div>
     <div className="card list"><button className="li dng" onClick={signOut}><span className="ci sm"><Ic n="logout" /></span><span className="grow">Sign out</span></button></div>
   </section>
 }

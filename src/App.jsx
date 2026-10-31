@@ -3,8 +3,13 @@ import katex from 'katex'
 import 'katex/contrib/mhchem'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
-import { Document, Packer, Paragraph, TextRun, AlignmentType, TabStopType, BorderStyle } from 'docx'
+import { Document, Packer, Paragraph, TextRun, AlignmentType, TabStopType, BorderStyle, Tab, ImageRun } from 'docx'
 import { texToText } from './tex.js'
+import { readDocxTemplate, readPdfLetterhead, fillDocxTemplate, applyToLines } from './template.js'
+import { putFile, getFile, delFile } from './store.js'
+import { loadPdfjs } from './pdfjs.js'
+import { aiQuestions, aiEnabled } from './ai.js'
+import { cloud, useCloud, imgUrl, syncNow } from './cloud.js'
 import logo from './assets/logo-full.png'
 import mark from './assets/mark.png'
 import Splash from './Splash.jsx'
@@ -17,7 +22,7 @@ import { activePlan, newSub, startFor } from './payments.js'
 import { systemNotify } from './notify.js'
 import { Ic, Modal, Badge, Thumb, M, Diagram, today, daysTo, when } from './ui.jsx'
 import { Planner, ExamCard, Blueprints, Insights, Favorites, Help, SettingsPage, More, Onboarding, NewQuestion } from './pages.jsx'
-import { PATTERNS, CUR, BANK, TEMPLATES, CATS, MEDIA, TYPES, AI_TXT, FORMATS0, PAPERS0, EXAMS0, BLUEPRINTS0, NOTIFS0 } from './data.js'
+import { inScope, PATTERNS, CUR, BANK, TEMPLATES, CATS, MEDIA, TYPES, AI_TXT, FORMATS0, PAPERS0, EXAMS0, BLUEPRINTS0, NOTIFS0 } from './data.js'
 let n = 100
 const uid = () => 'u' + Date.now().toString(36) + ++n
 
@@ -28,6 +33,22 @@ const mins = (m) => { const h = Math.floor(m / 60), r = m % 60; return [h && h +
 // Papers are laid out in sections by question type, the same way in the preview and the DOCX.
 const sectionsOf = (qs) => { const g = TYPES.map((t) => [t, qs.filter((q) => q.type === t)]).filter((x) => x[1].length), o = qs.filter((q) => !TYPES.includes(q.type)); return o.length ? [...g, ['Other questions', o]] : g }
 const instrOf = (p) => [...String(p.instr || '').split(/\n+/).map((x) => x.trim()).filter(Boolean), ...(p.neg ? ['Negative marking applies to wrong answers.'] : [])]
+/** Downloads the figures of questions that have an uploaded image, sized for a page. A missing image never blocks the export. */
+async function loadImages(qs) {
+  const out = {}
+  await Promise.all(qs.filter((q) => q.image).map(async (q) => {
+    try {
+      const r = await fetch(imgUrl(q.image)); if (!r.ok) return
+      const blob = await r.blob(), bmp = await createImageBitmap(blob), k = Math.min(1, 380 / bmp.width, 260 / bmp.height)
+      const type = blob.type.includes('png') ? 'png' : blob.type.includes('gif') ? 'gif' : 'jpg'
+      out[q.id] = { data: new Uint8Array(await blob.arrayBuffer()), type, w: Math.round(bmp.width * k), h: Math.round(bmp.height * k) }
+    } catch { /* keep the placeholder line */ }
+  }))
+  return out
+}
+const valuesOf = (p, total) => ({ exam: p.name, cls: String(p.std || '').replace(/^(Std|Class)\s*/i, ''), subject: p.subject, time: mins(p.mins), marks: String(total) })
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const saveBlob = (blob, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click() }
 const fmtD = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 
 
@@ -49,7 +70,7 @@ function QRow({ q, i, last, ch, mv, dup, del, regen, eq }) {
       <label className="mk">Marks <input type="number" min="0" value={q.marks} onChange={(e) => ch({ marks: +e.target.value })} /></label></div>
     <textarea aria-label={'Question ' + (i + 1)} value={q.text} onChange={(e) => ch({ text: e.target.value })} />
     <div className="prev"><M t={q.text} /></div>
-    {q.diagram && <Diagram />}
+    {q.image ? <img className="qimg" src={imgUrl(q.image)} alt={q.imageAlt || 'Figure'} /> : q.diagram && <Diagram />}
     {q.subs && q.subs.map((s, k) => <input key={k} aria-label="Subquestion" value={s} onChange={(e) => ch({ subs: q.subs.map((x, j) => (j === k ? e.target.value : x)) })} />)}
     {a && <div className="ans">Answer: <M t={q.ans || '— not available —'} /></div>}
     <div className="acts">
@@ -63,47 +84,98 @@ function Paper({ p, formats }) {
   const f = formats.find((x) => x.id === p.tpl), school = f ? f.school : ''
   const t = TEMPLATES.find((x) => x.id === p.tpl)
   const total = p.qs.reduce((a, q) => a + q.marks, 0), groups = sectionsOf(p.qs), starts = []
+  const lh = f && f.kind === 'pdf' ? applyToLines(f.lines, f.fields, valuesOf(p, total)) : null
   groups.reduce((c, g) => { starts.push(c); return c + g[1].length }, 0)
   const L = (i) => String.fromCharCode(65 + i)
   return <div className={'card paper ' + (t && t.id === 't2' ? 'compact' : '')}>
-    <div className="ph">{school && <h2>{school}</h2>}<h3>{p.name}</h3><small>{p.board} · {p.std} · {p.subject}{p.medium ? ' · ' + p.medium + ' medium' : ''}</small></div>
-    <div className="meta"><span>Time: {mins(p.mins)}</span><span>Maximum marks: {total}</span></div>
+    {lh ? <div className="ph" style={{ display: 'block' }}>{f.logos && f.logos.length > 0 && <div style={{ display: 'flex', justifyContent: f.logos.length === 1 ? ({ left: 'flex-start', center: 'center', right: 'flex-end' })[f.logos[0].align] : 'space-between', alignItems: 'center', marginBottom: 6 }}>{f.logos.map((l, i) => <img key={i} src={l.src} alt="School logo" style={{ height: l.h, maxWidth: '30%', objectFit: 'contain' }} />)}</div>}{lh.map((l, i) => <div key={i} style={{ textAlign: l.align, fontWeight: l.bold ? 700 : 400, fontSize: Math.min(Math.max(l.size, 10), 22), whiteSpace: 'pre-wrap' }}>{l.text.replace(/\t/g, '      ')}</div>)}</div>
+      : <><div className="ph">{school && <h2>{school}</h2>}<h3>{p.name}</h3><small>{p.board} · {p.std} · {p.subject}{p.medium ? ' · ' + p.medium + ' medium' : ''}</small></div>
+        <div className="meta"><span>Time: {mins(p.mins)}</span><span>Maximum marks: {total}</span></div></>}
     <div className="gen"><b>General instructions</b><ol>{instrOf(p).map((x, i) => <li key={i}>{x}</li>)}</ol></div>
     {!p.qs.length && <p><i>No questions added yet. Add questions in the Questions step.</i></p>}
     {groups.map(([ty, qs], gi) => <div key={ty}>
       <div className="sec"><span>Section {L(gi)}: {ty}</span><small>{qs.length} question{qs.length > 1 ? 's' : ''} · {qs.reduce((a, q) => a + q.marks, 0)} {qs.reduce((a, q) => a + q.marks, 0) === 1 ? 'mark' : 'marks'}</small></div>
-      {qs.map((q, i) => <div key={q.uid} className="pq"><span className="qn">{starts[gi] + i + 1}.</span><span><M t={q.text} />{q.diagram && <div><Diagram /></div>}{q.subs && q.subs.map((x, j) => <div key={j} className="sub">{x}</div>)}</span><b>[{q.marks}]</b></div>)}</div>)}
+      {qs.map((q, i) => <div key={q.uid} className="pq"><span className="qn">{starts[gi] + i + 1}.</span><span><M t={q.text} />{q.image ? <div><img className="qimg" src={imgUrl(q.image)} alt={q.imageAlt || 'Figure'} /></div> : q.diagram && <div><Diagram /></div>}{q.subs && q.subs.map((x, j) => <div key={j} className="sub">{x}</div>)}</span><b>[{q.marks}]</b></div>)}</div>)}
     {p.key && !!p.qs.length && <div className="key"><h3>Answer key</h3>{groups.map(([ty, qs], gi) => <div key={ty}><b>Section {L(gi)}: {ty}</b>{qs.map((q, i) => <div key={q.uid} className="pq"><span className="qn">{starts[gi] + i + 1}.</span><span><M t={q.ans || '—'} /></span><span /></div>)}</div>)}</div>}
     <div className="foot">End of question paper</div></div>
 }
 
 const Pick = ({ items, v, f, sub }) => <div className="grid">{items.map((i) => <button key={i} className={'card pick' + (v === i ? ' on' : '')} onClick={() => f(i)}>{i}{sub && <small>{sub}</small>}</button>)}</div>
 
+function ChapterPicker({ p, add }) {
+  const [c, setC] = useState(''), [ty, setTy] = useState(''), [mk, setMk] = useState(''), cur = c || p.chapters[0] || ''
+  const L = BANK.filter((x) => x.ch === cur && inScope(x, p.board, p.std, p.subject) && (!ty || x.type === ty) && (!mk || x.marks === +mk))
+  const has = (x) => p.qs.some((q) => q.id === x.id && q.id)
+  return <details className="card" open>
+    <summary><b>Pick questions chapter by chapter</b> <small>{p.std} › {p.subject} › {cur}</small></summary>
+    <div className="row wrap"><select aria-label="Chapter" value={cur} onChange={(e) => setC(e.target.value)}>{p.chapters.map((x) => <option key={x}>{x}</option>)}</select>
+      <select aria-label="Type" value={ty} onChange={(e) => setTy(e.target.value)}><option value="">All types</option>{TYPES.map((x) => <option key={x}>{x}</option>)}</select>
+      <select aria-label="Marks" value={mk} onChange={(e) => setMk(e.target.value)}><option value="">All marks</option>{[1, 2, 3, 4, 5].map((x) => <option key={x}>{x}</option>)}</select></div>
+    {!L.length && <p><small>No saved questions here for these filters. Use “+ Add AI question” or add your own in Question Bank.</small></p>}
+    <div className="qlist">{L.map((x) => <div key={x.id} className="qrow"><div className="qt"><span><M t={x.text} /></span><small>{x.type} · {x.diff} · {x.marks} {x.marks > 1 ? 'marks' : 'mark'}</small></div>
+      <span className="acts"><button className={has(x) ? '' : 'primary'} disabled={has(x)} onClick={() => add(x)}>{has(x) ? 'Added' : 'Add'}</button></span></div>)}</div></details>
+}
+
 function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
   const [q, setQ] = useState(''), [eqFor, setEqFor] = useState(null), [ft, setFt] = useState('b'), [done, setDone] = useState(false)
   const set = (o) => setP({ ...p, ...o })
-  const stds = p.board ? Object.keys(CUR[p.board]) : []
-  const subs = p.std ? Object.keys(CUR[p.board][p.std]) : []
-  const chs = p.subject ? CUR[p.board][p.std][p.subject] : {}
+  const stds = p.board ? Object.keys(CUR[p.board] || {}) : []
+  const subs = p.std ? Object.keys((CUR[p.board] || {})[p.std] || {}) : []
+  const chs = p.subject ? (((CUR[p.board] || {})[p.std] || {})[p.subject] || {}) : {}
   const total = p.qs.reduce((a, x) => a + x.marks, 0)
-  const pool = BANK.filter((x) => Object.keys(chs).includes(x.ch))
+  const pool = BANK.filter((x) => Object.keys(chs).includes(x.ch) && inScope(x, p.board, p.std, p.subject))
   const chq = (u, o) => set({ qs: p.qs.map((x) => (x.uid === u ? { ...x, ...o } : x)) })
   const ai = () => { const c = p.chapters[Math.floor(Math.random() * p.chapters.length)]; return { id: 0, uid: uid(), ch: c, type: 'Short', marks: 2, diff: p.diff, text: AI_TXT[Math.floor(Math.random() * AI_TXT.length)], ans: '', flag: true, src: 'AI Generated' } }
-  const gen = () => {
-    let out = []
-    if (p.source !== 'AI') out = BANK.filter((x) => p.chapters.includes(x.ch)).slice(0, p.nq).map((x) => ({ ...x, uid: uid() }))
-    const na = p.source === 'AI' ? p.nq : p.source === 'Both' ? 2 : 0
-    for (let i = 0; i < na; i++) out.push(ai())
-    set({ qs: out }); toast('Questions generated (dummy)')
+  const [busy, setBusy] = useState(false)
+  const mk = (x) => ({ ...x, uid: uid() })
+  const fromBank = (n) => { // spread questions across the chosen chapters, only the chosen types
+    const per = p.chapters.map((c) => BANK.filter((x) => x.ch === c && inScope(x, p.board, p.std, p.subject) && (!p.types.length || p.types.includes(x.type))))
+    const out = []; for (let i = 0; out.length < n && per.some((a) => i < a.length); i++) per.forEach((a) => { if (out.length < n && a[i]) out.push(mk(a[i])) })
+    return out
+  }
+  const gen = async () => {
+    let out = []; setBusy(true)
+    try {
+      if (p.source !== 'AI') out = fromBank(p.source === 'Both' ? Math.max(p.nq - 2, 1) : p.nq)
+      const na = p.source === 'AI' ? p.nq : p.source === 'Both' ? Math.min(2, p.nq) : 0
+      if (na) {
+        let made = null
+        try { made = await aiQuestions({ board: p.board, std: p.std, medium: p.medium, subject: p.subject, chapter: p.chapters, type: p.types, diff: p.diff, count: na }) } catch (e) { toast('AI server not reachable - showing demo questions') }
+        if (made && made.length) made.forEach((x) => out.push({ id: 0, uid: uid(), ch: x.ch || p.chapters[0], type: x.type || 'Short', marks: x.marks || 2, diff: x.diff || p.diff, text: x.text, ans: x.ans || '', subs: x.subs, flag: true, src: 'AI Generated' }))
+        else for (let i = 0; i < na; i++) out.push(ai())
+      }
+      set({ qs: out }); toast(aiEnabled || p.source === 'Bank' ? 'Questions generated' : 'Questions generated (AI is in demo mode)')
+    } finally { setBusy(false) }
   }
   const docx = async () => {
     const f = formats.find((x) => x.id === p.tpl), school = f ? f.school : '', groups = sectionsOf(p.qs)
+    const fname = (p.name.replace(/[\\/:*?"<>|]/g, '').trim() || 'question-paper') + '.docx', tot = p.qs.reduce((a, q) => a + q.marks, 0)
+    if (f && f.kind === 'docx') { // same file, same layout: the school's own Word document is the template
+      try {
+        const buf = await getFile(f.id)
+        if (buf) { const out = await fillDocxTemplate(buf, { paper: p, groups, values: valuesOf(p, tot), instr: instrOf(p) }); saveBlob(new Blob([out], { type: DOCX_MIME }), fname); saveP('Completed'); setDone(true); return }
+        toast('Your original file is missing on this device. Upload it again. Using the standard layout for now.')
+      } catch (e) { toast('Could not use your Word format (' + (e.message || 'error') + '). Using the standard layout.') }
+    }
+    const imgs = await loadImages(p.qs)
+    const lh = f && f.kind === 'pdf' ? applyToLines(f.lines, f.fields, valuesOf(p, tot)) : null
     const R = [{ type: TabStopType.RIGHT, position: 9000 }], line = { style: BorderStyle.SINGLE, size: 8, color: '000000', space: 4 }, L = (i) => String.fromCharCode(65 + i)
     const mid = (text, size, bold = true) => new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 }, children: [new TextRun({ text, bold, size })] })
     const kids = []
+    if (lh) {
+      if (f.logos && f.logos.length) {
+        const by = (a) => f.logos.filter((l) => l.align === a), pic = (l) => new ImageRun({ data: Uint8Array.from(atob(l.src.split(',')[1]), (c) => c.charCodeAt(0)), transformation: { width: Math.round(l.w * 1.333), height: Math.round(l.h * 1.333) }, type: 'png' })
+        const Lg = by('left'), Cg = by('center'), Rg = by('right'), ch = [...Lg.map(pic)]
+        if (Cg.length || Rg.length) ch.push(new TextRun({ children: [new Tab()] }), ...Cg.map(pic)); if (Rg.length) ch.push(new TextRun({ children: [new Tab()] }), ...Rg.map(pic))
+        kids.push(new Paragraph({ tabStops: [{ type: TabStopType.CENTER, position: 4500 }, { type: TabStopType.RIGHT, position: 9000 }], spacing: { after: 80 }, children: ch }))
+      }
+      lh.forEach((l) => kids.push(new Paragraph({ alignment: l.align === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT, tabStops: R, spacing: { after: 60 }, children: l.text.split('\t').map((x, k) => new TextRun({ children: k ? [new Tab(), x] : [x], bold: l.bold, size: Math.round(Math.min(Math.max(l.size, 10), 22) * 2) })) })))
+      kids.push(new Paragraph({ border: { bottom: line }, spacing: { after: 120 }, children: [] }))
+    } else {
     if (school) kids.push(mid(school.toUpperCase(), 30))
     kids.push(mid(p.name, 26), mid(`${p.board} · ${p.std} · ${p.subject}${p.medium ? ' · ' + p.medium + ' medium' : ''}`, 21, false))
     kids.push(new Paragraph({ tabStops: R, border: { top: line, bottom: line }, spacing: { before: 160, after: 160 }, children: [new TextRun({ text: 'Time: ' + mins(p.mins), bold: true }), new TextRun({ text: '\tMaximum marks: ' + total, bold: true })] }))
+    }
     kids.push(new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: 'General instructions', bold: true })] }))
     instrOf(p).forEach((x, i) => kids.push(new Paragraph({ indent: { left: 360, hanging: 360 }, children: [new TextRun(`${i + 1}.\t${x}`)] })))
     let n = 0
@@ -113,7 +185,8 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
         n++
         kids.push(new Paragraph({ tabStops: R, indent: { left: 480, hanging: 480 }, spacing: { after: 120 }, children: [new TextRun(`${n}.\t${plain(q.text)}`), new TextRun({ text: `\t[${q.marks}]`, bold: true })] }))
         ;(q.subs || []).forEach((x) => kids.push(new Paragraph({ indent: { left: 840 }, spacing: { after: 60 }, children: [new TextRun(plain(x))] })))
-        if (q.diagram) kids.push(new Paragraph({ indent: { left: 480 }, spacing: { after: 120 }, children: [new TextRun({ text: '[Diagram: insert figure here]', italics: true })] }))
+        if (imgs[q.id]) kids.push(new Paragraph({ indent: { left: 480 }, spacing: { after: 120 }, children: [new ImageRun({ data: imgs[q.id].data, type: imgs[q.id].type, transformation: { width: imgs[q.id].w, height: imgs[q.id].h } })] }))
+        else if (q.diagram) kids.push(new Paragraph({ indent: { left: 480 }, spacing: { after: 120 }, children: [new TextRun({ text: '[Diagram: insert figure here]', italics: true })] }))
       })
     })
     if (p.key) {
@@ -124,12 +197,12 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
       })
     }
     const d = new Document({ styles: { default: { document: { run: { font: 'Cambria', size: 22 } } } }, sections: [{ properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1134, bottom: 1134, left: 1440, right: 1440 } } }, children: kids }] })
-    const a = document.createElement('a'); a.href = URL.createObjectURL(await Packer.toBlob(d)); a.download = (p.name.replace(/[\\/:*?"<>|]/g, '').trim() || 'question-paper') + '.docx'; a.click()
+    saveBlob(await Packer.toBlob(d), fname)
     saveP('Completed'); setDone(true)
   }
   const valid = [p.board, p.std, p.subject, p.chapters.length, p.name && p.marks > 0, 1, p.qs.length, 1, 1, 1][step]
   const V = [
-    <Pick items={Object.keys(CUR)} v={p.board} f={(b) => set({ board: b, std: '', subject: '', chapters: [], qs: [] })} sub="Demo content" />,
+    <Pick items={Object.keys(CUR)} v={p.board} f={(b) => set({ board: b, std: '', subject: '', chapters: [], qs: [] })} sub={cloud.liveSyllabus ? 'Live syllabus' : 'Demo content'} />,
     stds.length ? <><Pick items={stds} v={p.std} f={(s) => set({ std: s, subject: '', chapters: [], qs: [] })} /><h4>Medium</h4><Pick items={MEDIA} v={p.medium} f={(m) => set({ medium: m })} /></> : <p>Select a board first.</p>,
     subs.length ? <Pick items={subs} v={p.subject} f={(s) => set({ subject: s, chapters: [], qs: [] })} /> : <div className="card">This class is not configured yet for {p.board} (demo). Choose another class.</div>,
     <>
@@ -151,10 +224,11 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
     <div className="grid">{[['Bank', 'Existing Question Bank'], ['AI', 'AI-Generated Questions'], ['Both', 'Both Bank and AI']].map(([k, l]) => <button key={k} className={'card pick' + (p.source === k ? ' on' : '')} onClick={() => set({ source: k })}>{l}</button>)}</div>,
     <>
       <div className="card sum"><b>{p.qs.length}</b> questions · <b>{total}</b> / {p.marks} marks {total !== p.marks && p.qs.length > 0 && <Badge c="warn">Marks differ from target</Badge>} · {[...new Set(p.qs.map((x) => x.ch))].map((c) => c + ': ' + p.qs.filter((x) => x.ch === c).length).join(' · ')}</div>
-      <div className="acts"><button className="primary" onClick={gen}>{p.qs.length ? 'Regenerate all' : 'Generate questions'}</button>
+      <div className="acts"><button className="primary" disabled={busy} onClick={gen}>{busy ? 'Generating…' : p.qs.length ? 'Regenerate all' : 'Auto-generate questions'}</button>
         <button onClick={() => set({ qs: [...p.qs, ai()] })}>+ Add AI question</button>
         <select aria-label="Add from bank" value="" onChange={(e) => { const x = BANK.find((b) => b.id === +e.target.value); if (x) set({ qs: [...p.qs, { ...x, uid: uid() }] }) }}><option value="">+ Add from bank…</option>{pool.map((x) => <option key={x.id} value={x.id}>{plain(x.text).slice(0, 50)}</option>)}</select></div>
-      {!p.qs.length && <div className="card">No questions yet. Click “Generate questions”.</div>}
+      <ChapterPicker p={p} add={(x) => set({ qs: [...p.qs, mk(x)] })} />
+      {!p.qs.length && <div className="card">No questions yet. Pick them chapter by chapter above, or click “Auto-generate questions”.</div>}
       {p.qs.map((x, i) => <QRow key={x.uid} q={x} i={i} last={i === p.qs.length - 1} ch={(o) => chq(x.uid, o)} eq={() => setEqFor(x.uid)}
         mv={(d) => { const a = [...p.qs];[a[i], a[i + d]] = [a[i + d], a[i]]; set({ qs: a }) }}
         dup={() => { const a = [...p.qs]; a.splice(i + 1, 0, { ...x, uid: uid() }); set({ qs: a }) }}
@@ -163,8 +237,9 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
       {eqFor && <Eq onClose={() => setEqFor(null)} onApply={(s) => { const x = p.qs.find((y) => y.uid === eqFor); chq(eqFor, { text: x.text + ' ' + s }); setEqFor(null) }} />}</>,
     <>
       <div className="tabs"><button className={ft === 'b' ? 'on' : ''} onClick={() => setFt('b')}>Built-in templates</button><button className={ft === 'm' ? 'on' : ''} onClick={() => setFt('m')}>My uploaded formats</button></div>
-      <div className="grid">{(ft === 'b' ? TEMPLATES : formats).map((t) => <button key={t.id} className={'card pick' + (p.tpl === t.id ? ' on' : '')} onClick={() => set({ tpl: t.id })}><Thumb s={t.id === 't2' ? 'c' : ''} />{t.name}<small>{t.school || t.cat}</small></button>)}</div></>,
-    <><p><small>This is how the paper will print. Questions are grouped into sections by type, and the DOCX export follows the same layout. {total !== p.marks && <Badge c="warn">Questions add up to {total} of {p.marks} marks</Badge>}</small></p><Paper p={p} formats={formats} /></>,
+      <div className="grid">{(ft === 'b' ? TEMPLATES : formats).map((t) => <button key={t.id} className={'card pick' + (p.tpl === t.id ? ' on' : '')} onClick={() => set({ tpl: t.id })}><Thumb s={t.id === 't2' ? 'c' : ''} />{t.name}<small>{t.school || t.cat}{t.kind ? ' · ' + t.kind.toUpperCase() + ' format' : ''}</small></button>)}</div>
+      {ft === 'm' && !formats.length && <div className="card">No uploaded formats yet. Upload your school's DOCX or PDF in Templates & My Formats.</div>}</>,
+    <><p><small>This is how the paper will print. Questions are grouped into sections by type. {(() => { const f = formats.find((x) => x.id === p.tpl); return f && f.kind === 'docx' ? 'The Word download is built inside your own school file (same letterhead, fonts, header and footer); this preview is a simplified view.' : 'The DOCX export follows the same layout.' })()} {total !== p.marks && <Badge c="warn">Questions add up to {total} of {p.marks} marks</Badge>}</small></p><Paper p={p} formats={formats} /></>,
     <div className="card">
       <label className="chip"><input type="checkbox" checked={p.key} onChange={() => set({ key: !p.key })} />Include answer key</label>
       <div className="acts"><button className="primary" onClick={docx}>Download DOCX</button><button onClick={() => { window.print(); saveP('Completed'); setDone(true) }}>Download PDF (print)</button></div>
@@ -184,7 +259,7 @@ const Sel = ({ k, o, l, f, setF }) => <select aria-label={l} value={f[k] || ''} 
 function QBank({ init, favs, tf, add, mine }) {
   const [mkq, setMkq] = useState(false), [s, setS] = useState(init || ''), [f, setF] = useState({}), [fv, setFv] = useState(false), [sel, setSel] = useState([]), [pv, setPv] = useState(null)
   const L = BANK.filter((q) => (!s || (q.text + q.ch + q.sub).toLowerCase().includes(s.toLowerCase())) && (!f.ty || q.type === f.ty) && (!f.df || q.diff === f.df) && (!f.mk || q.marks === +f.mk) && (!f.sb || q.sub === f.sb) && (!fv || favs.includes(q.id)))
-  return <section><div className="pg-h"><h2>Question Bank</h2><small>{BANK.length} questions · GSEB and CBSE</small></div>
+  return <section><div className="pg-h"><h2>Question Bank</h2><small>{BANK.length} questions · {[...new Set(BANK.map((q) => q.board).filter(Boolean))].join(', ') || 'sample content'}{cloud.liveQuestions ? ' · live' : ''}</small></div>
     <div className="toolbar"><input type="search" placeholder="Search by question, chapter or subject" value={s} onChange={(e) => setS(e.target.value)} aria-label="Search" />
       <Sel f={f} setF={setF} k="sb" l="Subject" o={['Mathematics', 'Science', 'Physics', 'Chemistry']} /><Sel f={f} setF={setF} k="ty" l="Type" o={TYPES} /><Sel f={f} setF={setF} k="df" l="Difficulty" o={['Easy', 'Medium', 'Hard']} /><Sel f={f} setF={setF} k="mk" l="Marks" o={['1', '2', '3', '4']} />
       <label className="chip"><input type="checkbox" checked={fv} onChange={() => setFv(!fv)} />Favorites</label>
@@ -194,37 +269,53 @@ function QBank({ init, favs, tf, add, mine }) {
       <small>{q.sub} › {q.ch} · {q.type} · {q.diff} · {q.marks} {q.marks > 1 ? 'marks' : 'mark'}</small></div>
       <span className="acts"><button onClick={() => tf(q.id)} aria-label="Favorite"><Ic n="star" f={favs.includes(q.id)} /></button><button onClick={() => setPv(q)}>Preview</button><button onClick={() => add(q, true)}>Customize</button><button className="primary" onClick={() => add(q)}>Add to paper</button></span></div>)}</div>
     {mkq && <NewQuestion onClose={() => setMkq(false)} onSave={(q) => { mine(q); setMkq(false) }} />}
-    {pv && <Modal title="Question preview" onClose={() => setPv(null)}><p><M t={pv.text} /></p>{pv.diagram && <Diagram />}<p>Answer: <M t={pv.ans} /></p></Modal>}</section>
+    {pv && <Modal title="Question preview" onClose={() => setPv(null)}><p><M t={pv.text} /></p>{pv.image ? <img className="qimg" src={imgUrl(pv.image)} alt={pv.imageAlt || 'Figure'} /> : pv.diagram && <Diagram />}<p>Answer: <M t={pv.ans} /></p></Modal>}</section>
 }
 
 function Tpls({ favT, tfT, formats, setFormats, use, toast, ask }) {
   const [q, setQ] = useState(''), [c, setC] = useState('All'), [pv, setPv] = useState(null), [up, setUp] = useState(null)
-  const onFile = (f) => {
+  const onFile = async (f) => {
     if (!f) return
-    if (!/\.(docx|pdf)$/i.test(f.name)) return toast('Unsupported file. Please upload a DOCX or PDF.')
-    setUp({ name: f.name, pct: 0 }); let v = 0
-    const t = setInterval(() => { v += 25; setUp((u) => ({ ...u, pct: v })); if (v >= 100) { clearInterval(t); setUp((u) => ({ ...u, done: true, F: { school: 'Sunrise Public School', title: 'Annual Examination', year: '2026-27', duration: '3 Hours', marks: '80' } })) } }, 400)
+    if (!/\.(docx|pdf)$/i.test(f.name)) return toast('Unsupported file. Please upload a DOCX or PDF (old .doc files: save as DOCX first).')
+    setUp({ name: f.name, pct: 40 })
+    try {
+      const buf = await f.arrayBuffer(), isDocx = /\.docx$/i.test(f.name)
+      const info = isDocx ? await readDocxTemplate(buf) : await readPdfLetterhead(buf, await loadPdfjs())
+      if (!isDocx && !info.lines.length) throw new Error('This PDF has no readable text (it looks scanned). Upload the DOCX, or a PDF saved from Word.')
+      const g = info.fields
+      setUp({ name: f.name, pct: 100, done: true, buf, info, F: { school: g.school || '', title: g.title || '', cls: g.cls || '', subject: g.subject || '', duration: g.time || '', marks: g.marks || '' } })
+    } catch (e) { setUp(null); toast(e.message || 'Could not read this file.') }
+  }
+  const saveFormat = async () => {
+    const id = uid(), { info, F, buf, name } = up
+    try {
+      if (info.kind === 'docx') await putFile(id, buf)
+      setFormats([{ id, name: name.replace(/\.\w+$/, ''), school: F.school, last: today(), kind: info.kind, fields: info.fields, lines: info.lines, logos: info.kind === 'pdf' ? info.logos : [], logoCount: info.kind === 'docx' ? info.logos : (info.logos || []).length }, ...formats]); setUp(null); toast('Format saved. Papers will now follow this layout.')
+    } catch (e) { toast('Could not store the file on this device (storage full?).') }
   }
   const T = TEMPLATES.filter((t) => (c === 'All' || t.cat === c) && t.name.toLowerCase().includes(q.toLowerCase()))
   return <section><h2>Templates & My Formats</h2>
     <div className="card drop" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); onFile(e.dataTransfer.files[0]) }}>
       <p><b>Upload My Format</b> — drag and drop a DOCX or PDF here</p><label className="btn">Browse files<input hidden type="file" accept=".docx,.pdf" onChange={(e) => onFile(e.target.files[0])} /></label>
       {up && !up.done && <div className="bar"><div style={{ width: up.pct + '%' }} /></div>}
-      {up && up.done && <div className="form"><p>Processed <b>{up.name}</b> (demo detection). <Badge c="warn">1 unsupported element: watermark</Badge></p>
-        {Object.entries({ school: 'School name', title: 'Exam title', year: 'Academic year', duration: 'Duration', marks: 'Total marks' }).map(([k, l]) => <label key={k}>{l} <Badge c={k === 'year' ? 'warn' : 'bk'}>{k === 'year' ? 'Please confirm' : 'Detected'}</Badge><input value={up.F[k]} onChange={(e) => setUp({ ...up, F: { ...up.F, [k]: e.target.value } })} /></label>)}
-        <button className="primary" onClick={() => { setFormats([{ id: uid(), name: up.name.replace(/\.\w+$/, ''), school: up.F.school, last: today() }, ...formats]); setUp(null); toast('Format saved') }}>Save format</button></div>}</div>
+      {up && up.done && <div className="form"><p>Read <b>{up.name}</b>. {up.info.kind === 'docx' ? (up.info.hasMarker ? 'Found your {{questions}} marker: new questions go exactly there.' : up.info.questionsFound ? `The ${up.info.questionsFound} old sample lines after the letterhead will be replaced by the new questions.` : 'No sample questions found: new questions are added below your letterhead.') : 'The top of page 1 is used as the paper heading.'}</p>
+        <p>School logo: {(info => (info.kind === 'docx' ? info.logos : (info.logos || []).length))(up.info) ? <Badge c="bk">Found, will be kept{up.info.kind === 'pdf' ? ' (' + up.info.logos.length + ')' : ''}</Badge> : <Badge c="warn">Not found in this file</Badge>} {up.info.kind === 'pdf' && up.info.logos.map((l, i) => <img key={i} src={l.src} alt="Logo" style={{ height: 36, verticalAlign: 'middle', marginLeft: 8 }} />)}</p>
+        <p><small>These values are found automatically and are replaced for every new paper. Anything not found stays exactly as in your file.</small></p>
+        {Object.entries({ school: 'School name', title: 'Exam title', cls: 'Class', subject: 'Subject', duration: 'Time', marks: 'Total marks' }).map(([k, l]) => <label key={k}>{l} <Badge c={up.F[k] ? 'bk' : 'warn'}>{up.F[k] ? 'Detected' : 'Not found'}</Badge>{k === 'school' ? <input value={up.F[k]} onChange={(e) => setUp({ ...up, F: { ...up.F, [k]: e.target.value } })} /> : <input readOnly value={up.F[k] || '—'} />}</label>)}
+        <p><small>Tip: in Word you can type <b>{'{{exam}} {{class}} {{subject}} {{time}} {{marks}}'}</b> in your file and put <b>{'{{questions}}'}</b> on its own line where the questions should start.</small></p>
+        <button className="primary" onClick={saveFormat}>Save format</button><button onClick={() => setUp(null)}>Cancel</button></div>}</div>
     <h3>My Formats</h3>{!formats.length && <div className="card">No formats yet. Upload one above.</div>}
-    <div className="grid">{formats.map((f) => <div key={f.id} className="card"><Thumb /><b>{f.name}</b><small>{f.school} · last used {f.last}</small>
-      <div className="acts"><button onClick={() => setPv(f)}>Preview</button><button onClick={() => toast('Mapping editor (dummy)')}>Edit mapping</button>
+    <div className="grid">{formats.map((f) => <div key={f.id} className="card"><Thumb /><b>{f.name}</b><small>{f.school} · {f.kind ? f.kind.toUpperCase() + ' format' : 'sample'} · last used {f.last}</small>
+      <div className="acts"><button onClick={() => setPv(f)}>Details</button>
         <button onClick={() => { const nm = window.prompt('Rename format', f.name); if (nm) setFormats(formats.map((x) => (x.id === f.id ? { ...x, name: nm } : x))) }}>Rename</button>
-        <button onClick={() => setFormats([...formats, { ...f, id: uid(), name: f.name + ' (copy)' }])}>Duplicate</button>
-        <button className="dng" onClick={() => ask('Delete this format?', () => setFormats(formats.filter((x) => x.id !== f.id)))}>Delete</button>
+        <button onClick={async () => { const id = uid(); try { if (f.kind === 'docx') { const b = await getFile(f.id); if (b) await putFile(id, b) } setFormats([...formats, { ...f, id, name: f.name + ' (copy)' }]) } catch (e) { toast('Could not copy this format') } }}>Duplicate</button>
+        <button className="dng" onClick={() => ask('Delete this format?', () => { if (f.kind === 'docx') delFile(f.id).catch(() => {}); setFormats(formats.filter((x) => x.id !== f.id)) })}>Delete</button>
         <button className="primary" onClick={() => use(f.id)}>Use this format</button></div></div>)}</div>
     <h3>Built-in templates</h3><div className="row wrap"><input placeholder="Search templates…" aria-label="Search templates" value={q} onChange={(e) => setQ(e.target.value)} />
       <select aria-label="Category" value={c} onChange={(e) => setC(e.target.value)}>{CATS.map((x) => <option key={x}>{x}</option>)}</select></div>
     {c === 'My Uploaded Formats' ? <p>See “My Formats” above.</p> : <div className="grid">{T.map((t) => <div key={t.id} className="card"><Thumb s={t.id === 't2' ? 'c' : ''} /><b>{t.name}</b><small>{t.cat} · Built-in</small>
       <div className="acts"><button onClick={() => tfT(t.id)} aria-label="Favorite"><Ic n="star" f={favT.includes(t.id)} /></button><button onClick={() => setPv(t)}>Preview</button><button className="primary" onClick={() => use(t.id)}>Use template</button></div></div>)}</div>}
-    {pv && <Modal title={pv.name} onClose={() => setPv(null)}><Thumb s="big" /><p>Preview (dummy thumbnail)</p></Modal>}</section>
+    {pv && <Modal title={pv.name} onClose={() => setPv(null)}>{pv.fields ? <div><p><b>{pv.fields.school || pv.school}</b></p>{pv.fields.title && <p>{pv.fields.title}</p>}<p><small>Class {pv.fields.cls || '—'} · {pv.fields.subject || '—'} · {pv.fields.time || '—'} · {pv.fields.marks || '—'} marks (values found in your file)</small></p>{pv.logos && pv.logos.length > 0 && <p>{pv.logos.map((l, i) => <img key={i} src={l.src} alt="Logo" style={{ height: 40, marginRight: 8 }} />)}</p>}{pv.kind === 'docx' && <p><small>Logo: {pv.logoCount ? 'kept from your file' : 'none found'}</small></p>}<p><small>{pv.kind === 'docx' ? 'Word papers are built inside your original file, so fonts, logo, header and footer stay identical.' : 'The heading of your PDF is reused for every paper.'}</small></p></div> : <><Thumb s="big" /><p>Preview (dummy thumbnail)</p></>}</Modal>}</section>
 }
 
 const stCls = (x) => (x === 'Completed' ? 'bk' : x === 'Draft' ? 'warn' : '')
@@ -251,15 +342,17 @@ function Papers({ papers, setPapers, open, ask, toast }) {
 const PC = ({ x, open }) => <button className="card pick" onClick={() => open(x)}><Thumb /><b>{x.name}</b><small>{x.subject} · {x.std} · {x.date} · {x.status}</small></button>
 
 function Subj() {
-  const [b, setB] = useState('GSEB'), [s, setS] = useState('Std 10'), [sb, setSb] = useState(null), [q, setQ] = useState('')
+  useCloud()
+  const [b0, setB] = useState(''), [s0, setS] = useState(''), [sb, setSb] = useState(null), [q, setQ] = useState('')
+  const b = CUR[b0] ? b0 : Object.keys(CUR)[0] || '', s = (CUR[b] || {})[s0] ? s0 : Object.keys(CUR[b] || {})[0] || ''   // fall back if the saved choice no longer exists in the live syllabus
   const D = (CUR[b] || {})[s] || {}
   return <section><h2>Subjects & Chapters</h2><div className="row wrap">
-    <select aria-label="Board" value={b} onChange={(e) => { setB(e.target.value); setS(Object.keys(CUR[e.target.value])[0]); setSb(null) }}>{Object.keys(CUR).map((x) => <option key={x}>{x}</option>)}</select>
-    <select aria-label="Standard" value={s} onChange={(e) => { setS(e.target.value); setSb(null) }}>{Object.keys(CUR[b]).map((x) => <option key={x}>{x}</option>)}</select>
+    <select aria-label="Board" value={b} onChange={(e) => { setB(e.target.value); setS(Object.keys(CUR[e.target.value] || {})[0] || ''); setSb(null) }}>{Object.keys(CUR).map((x) => <option key={x}>{x}</option>)}</select>
+    <select aria-label="Standard" value={s} onChange={(e) => { setS(e.target.value); setSb(null) }}>{Object.keys(CUR[b] || {}).map((x) => <option key={x}>{x}</option>)}</select>
     <input placeholder="Search chapters…" aria-label="Search" value={q} onChange={(e) => setQ(e.target.value)} /></div>
-    {!Object.keys(D).length && <div className="card">Content for {b} {s} is not configured yet (demo).</div>}
+    {!Object.keys(D).length && <div className="card">Content for {b} {s} is not configured yet{cloud.liveSyllabus ? '' : ' (demo)'}.</div>}
     <div className="grid">{Object.keys(D).map((x) => <button key={x} className={'card pick' + (sb === x ? ' on' : '')} onClick={() => setSb(x)}>{x}</button>)}</div>
-    {sb && Object.keys(D[sb]).filter((c) => c.toLowerCase().includes(q.toLowerCase())).map((c) => <details key={c} className="card"><summary>{c} <small>{BANK.filter((x) => x.ch === c).length} questions</small></summary>{D[sb][c].map((t) => <div key={t} className="sub">• {t}</div>)}</details>)}</section>
+    {sb && Object.keys(D[sb]).filter((c) => c.toLowerCase().includes(q.toLowerCase())).map((c) => <details key={c} className="card"><summary>{c} <small>{BANK.filter((x) => x.ch === c && inScope(x, b, s, sb)).length} questions</small></summary>{D[sb][c].map((t) => <div key={t} className="sub">• {t}</div>)}</details>)}</section>
 }
 
 const GuestCard = ({ title, sub, openAuth }) => <section><h2>{title}</h2>
@@ -289,6 +382,7 @@ function usePersist(k, d) {
 }
 
 export default function App() {
+  useCloud()   // re-render everything when the syllabus / questions are updated from the admin panel
   const [page, setPage] = useState(fromHash), [nd, setNd] = useState(false), [col, setCol] = useState(false), [step, setStep] = useState(0), [p, setP] = useState(blank)
   const [papers, setPapers] = usePersist('ep_papers', PAPERS0), [formats, setFormats] = usePersist('ep_formats', FORMATS0)
   const [favT, setFavT] = usePersist('ep_favT', ['t1', 't6']), [favQ, setFavQ] = usePersist('ep_favQ', [])
