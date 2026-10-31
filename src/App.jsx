@@ -26,7 +26,7 @@ import { inScope, PATTERNS, CUR, BANK, TEMPLATES, CATS, MEDIA, TYPES, AI_TXT, FO
 let n = 100
 const uid = () => 'u' + Date.now().toString(36) + ++n
 
-const STEPS = ['Board', 'Standard', 'Subject', 'Chapters', 'Details', 'Source', 'Questions', 'Format', 'Preview', 'Export']
+const STEPS = ['Class', 'Chapters', 'Setup', 'Questions', 'Format', 'Export']
 const blank = { board: '', std: '', medium: 'English', subject: '', chapters: [], name: 'Unit Test 1', marks: 25, mins: 60, diff: 'Medium', nq: 8, types: ['MCQ', 'Short', 'Long'], neg: false, instr: 'All questions are compulsory.', source: 'Both', qs: [], pat: '', tpl: 't1', key: true, id: null, status: 'Draft' }
 const plain = (t = '') => texToText(t)
 const mins = (m) => { const h = Math.floor(m / 60), r = m % 60; return [h && h + (h > 1 ? ' hours' : ' hour'), r && r + ' minutes'].filter(Boolean).join(' ') || '—' }
@@ -102,28 +102,37 @@ function Paper({ p, formats }) {
 
 const Pick = ({ items, v, f, sub }) => <div className="grid">{items.map((i) => <button key={i} className={'card pick' + (v === i ? ' on' : '')} onClick={() => f(i)}>{i}{sub && <small>{sub}</small>}</button>)}</div>
 
-function ChapterPicker({ p, add }) {
-  const [c, setC] = useState(''), [ty, setTy] = useState(''), [mk, setMk] = useState(''), cur = c || p.chapters[0] || ''
-  const L = BANK.filter((x) => x.ch === cur && inScope(x, p.board, p.std, p.subject) && (!ty || x.type === ty) && (!mk || x.marks === +mk))
-  const has = (x) => p.qs.some((q) => q.id === x.id && q.id)
-  return <details className="card" open>
-    <summary><b>Pick questions chapter by chapter</b> <small>{p.std} › {p.subject} › {cur}</small></summary>
-    <div className="row wrap"><select aria-label="Chapter" value={cur} onChange={(e) => setC(e.target.value)}>{p.chapters.map((x) => <option key={x}>{x}</option>)}</select>
-      <select aria-label="Type" value={ty} onChange={(e) => setTy(e.target.value)}><option value="">All types</option>{TYPES.map((x) => <option key={x}>{x}</option>)}</select>
-      <select aria-label="Marks" value={mk} onChange={(e) => setMk(e.target.value)}><option value="">All marks</option>{[1, 2, 3, 4, 5].map((x) => <option key={x}>{x}</option>)}</select></div>
-    {!L.length && <p><small>No saved questions here for these filters. Use “+ Add AI question” or add your own in Question Bank.</small></p>}
-    <div className="qlist">{L.map((x) => <div key={x.id} className="qrow"><div className="qt"><span><M t={x.text} /></span><small>{x.type} · {x.diff} · {x.marks} {x.marks > 1 ? 'marks' : 'mark'}</small></div>
-      <span className="acts"><button className={has(x) ? '' : 'primary'} disabled={has(x)} onClick={() => add(x)}>{has(x) ? 'Added' : 'Add'}</button></span></div>)}</div></details>
+/** Browse every question of the chosen chapters. One checkbox per question, grouped by type (all MCQ together, then Short, Long ...). */
+function QPick({ p, set, mk }) {
+  const [ty, setTy] = useState(''), [ch, setCh] = useState(''), [q, setQ] = useState('')
+  const base = BANK.filter((x) => p.chapters.includes(x.ch) && inScope(x, p.board, p.std, p.subject) && (!ch || x.ch === ch))
+  const pool = base.filter((x) => !q || plain(x.text).toLowerCase().includes(q.toLowerCase()))
+  const present = [...TYPES.filter((t) => pool.some((x) => x.type === t)), ...(pool.some((x) => !TYPES.includes(x.type)) ? ['Other'] : [])]
+  const list = pool.filter((x) => !ty || (ty === 'Other' ? !TYPES.includes(x.type) : x.type === ty))
+  const groups = present.filter((t) => !ty || t === ty).map((t) => [t, list.filter((x) => (t === 'Other' ? !TYPES.includes(x.type) : x.type === t))]).filter((g) => g[1].length)
+  const has = (x) => p.qs.some((y) => y.id && y.id === x.id)
+  const toggle = (x) => set({ qs: has(x) ? p.qs.filter((y) => !(y.id && y.id === x.id)) : [...p.qs, mk(x)] })
+  const toggleAll = (xs) => { const on = xs.every(has); set({ qs: on ? p.qs.filter((y) => !xs.some((x) => y.id && y.id === x.id)) : [...p.qs, ...xs.filter((x) => !has(x)).map(mk)] }) }
+  const n = (t) => pool.filter((x) => (t === 'Other' ? !TYPES.includes(x.type) : x.type === t)).length
+  return <div className="qp">
+    <input type="search" placeholder="Search questions" aria-label="Search questions" value={q} onChange={(e) => setQ(e.target.value)} />
+    {p.chapters.length > 1 && <div className="qchips" role="group" aria-label="Chapter">{['', ...p.chapters].map((c) => <button key={c || 'all'} type="button" className={ch === c ? 'on' : ''} aria-pressed={ch === c} onClick={() => setCh(c)}>{c || 'All chapters'}</button>)}</div>}
+    <div className="qchips" role="group" aria-label="Question type">{['', ...present].map((t) => <button key={t || 'all'} type="button" className={ty === t ? 'on' : ''} aria-pressed={ty === t} onClick={() => setTy(t)}>{t || 'All'} <em>{t ? n(t) : pool.length}</em></button>)}</div>
+    {!groups.length && <div className="card empty"><b>No saved questions here</b><small>{base.length ? 'Nothing matches your search or filter.' : 'This chapter has no saved questions yet. Use “+ AI question” or Auto-fill.'}</small></div>}
+    {groups.map(([t, xs]) => <div key={t} className="qg">
+      <div className="qg-h"><label className="chip"><input type="checkbox" checked={xs.every(has)} onChange={() => toggleAll(xs)} aria-label={'Select all ' + t} /><b>{t}</b></label><small>{xs.filter(has).length} of {xs.length} added</small></div>
+      <div className="qlist">{xs.map((x) => <label key={x.id} className={'qx' + (has(x) ? ' on' : '')}><input type="checkbox" checked={has(x)} onChange={() => toggle(x)} />
+        <span className="qt"><span><M t={x.text} /></span><small>{p.chapters.length > 1 && !ch ? x.ch + ' · ' : ''}{x.diff} · {x.marks} {x.marks > 1 ? 'marks' : 'mark'}</small></span></label>)}</div></div>)}
+  </div>
 }
 
 function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
-  const [q, setQ] = useState(''), [eqFor, setEqFor] = useState(null), [ft, setFt] = useState('b'), [done, setDone] = useState(false)
+  const [q, setQ] = useState(''), [eqFor, setEqFor] = useState(null), [ft, setFt] = useState('b'), [done, setDone] = useState(false), [qv, setQv] = useState('add')
   const set = (o) => setP({ ...p, ...o })
   const stds = p.board ? Object.keys(CUR[p.board] || {}) : []
   const subs = p.std ? Object.keys((CUR[p.board] || {})[p.std] || {}) : []
   const chs = p.subject ? (((CUR[p.board] || {})[p.std] || {})[p.subject] || {}) : {}
   const total = p.qs.reduce((a, x) => a + x.marks, 0)
-  const pool = BANK.filter((x) => Object.keys(chs).includes(x.ch) && inScope(x, p.board, p.std, p.subject))
   const chq = (u, o) => set({ qs: p.qs.map((x) => (x.uid === u ? { ...x, ...o } : x)) })
   const ai = () => { const c = p.chapters[Math.floor(Math.random() * p.chapters.length)]; return { id: 0, uid: uid(), ch: c, type: 'Short', marks: 2, diff: p.diff, text: AI_TXT[Math.floor(Math.random() * AI_TXT.length)], ans: '', flag: true, src: 'AI Generated' } }
   const [busy, setBusy] = useState(false)
@@ -200,57 +209,73 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
     saveBlob(await Packer.toBlob(d), fname)
     saveP('Completed'); setDone(true)
   }
-  const valid = [p.board, p.std, p.subject, p.chapters.length, p.name && p.marks > 0, 1, p.qs.length, 1, 1, 1][step]
+  const valid = [p.board && p.std && p.subject, p.chapters.length, p.name && p.marks > 0, p.qs.length, 1, 1][step]
+  const patterns = PATTERNS.filter((x) => (!x.board || x.board === p.board) && (!x.std || x.std === p.std) && (!x.sub || x.sub === p.subject))
+  const scope = [p.board, p.std, p.subject, p.medium].filter(Boolean).join(' · ')
   const V = [
-    <Pick items={Object.keys(CUR)} v={p.board} f={(b) => set({ board: b, std: '', subject: '', chapters: [], qs: [] })} sub={cloud.liveSyllabus ? 'Live syllabus' : 'Demo content'} />,
-    stds.length ? <><Pick items={stds} v={p.std} f={(s) => set({ std: s, subject: '', chapters: [], qs: [] })} /><h4>Medium</h4><Pick items={MEDIA} v={p.medium} f={(m) => set({ medium: m })} /></> : <p>Select a board first.</p>,
-    subs.length ? <Pick items={subs} v={p.subject} f={(s) => set({ subject: s, chapters: [], qs: [] })} /> : <div className="card">This class is not configured yet for {p.board} (demo). Choose another class.</div>,
+    /* 1. Class: board, standard, medium and subject on one screen, asked once */
     <>
+      <h4>Board</h4><Pick items={Object.keys(CUR)} v={p.board} f={(b) => set({ board: b, std: '', subject: '', chapters: [], qs: [] })} sub={cloud.liveSyllabus ? 'Live syllabus' : 'Demo content'} />
+      {p.board && <><h4>Standard</h4><Pick items={stds} v={p.std} f={(x) => set({ std: x, subject: '', chapters: [], qs: [] })} /></>}
+      {p.std && <><h4>Subject</h4>{subs.length ? <Pick items={subs} v={p.subject} f={(x) => set({ subject: x, chapters: [], qs: [] })} /> : <div className="card">This class is not configured yet for {p.board} (demo). Choose another standard.</div>}</>}
+      {p.subject && <><h4>Medium</h4><div className="qchips" role="group" aria-label="Medium">{MEDIA.map((m) => <button key={m} type="button" className={p.medium === m ? 'on' : ''} aria-pressed={p.medium === m} onClick={() => set({ medium: m })}>{m}</button>)}</div></>}
+    </>,
+    /* 2. Chapters */
+    <>
+      <p className="ctx">{scope}</p>
       <div className="row"><input placeholder="Search chapters…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search chapters" />
-        <button onClick={() => set({ chapters: p.chapters.length === Object.keys(chs).length ? [] : Object.keys(chs) })}>Select all</button></div>
-      {Object.keys(chs).filter((c) => c.toLowerCase().includes(q.toLowerCase())).map((c) => <details key={c} className="card"><summary><label><input type="checkbox" checked={p.chapters.includes(c)} onChange={() => set({ chapters: p.chapters.includes(c) ? p.chapters.filter((x) => x !== c) : [...p.chapters, c] })} /> {c}</label><small> {BANK.filter((x) => x.ch === c).length} questions</small></summary>{chs[c].map((t) => <div key={t} className="sub">• {t}</div>)}</details>)}
-      <p><b>{p.chapters.length}</b> selected: {p.chapters.join(', ') || '—'}</p></>,
-    <><h4>Exam pattern</h4><p><small>Choose a pattern to fill marks, time and question types. You can change any value afterwards.</small></p>
-    <div className="pat">{PATTERNS.filter((x) => !x.board || x.board === p.board).map((x) => <button key={x.id} className={'card pick' + (p.pat === x.id ? ' on' : '')} aria-pressed={p.pat === x.id} onClick={() => set({ pat: x.id, marks: x.marks, mins: x.mins, nq: x.nq || p.nq, types: x.types })}>{x.label}<small>{x.note}</small></button>)}</div>
-    <div className="card form">
-      <label>Examination name<input value={p.name} onChange={(e) => set({ name: e.target.value })} /></label>
-      <div className="grid"><label>Total marks<input type="number" value={p.marks} onChange={(e) => set({ marks: +e.target.value })} /></label><label>Duration (min)<input type="number" value={p.mins} onChange={(e) => set({ mins: +e.target.value })} /></label>
-        <label>No. of questions<input type="number" value={p.nq} onChange={(e) => set({ nq: +e.target.value })} /></label>
-        <label>Difficulty<select value={p.diff} onChange={(e) => set({ diff: e.target.value })}>{['Easy', 'Medium', 'Hard', 'Mixed'].map((d) => <option key={d}>{d}</option>)}</select></label></div>
-      <h4>Question types</h4><div className="chips">{TYPES.map((t) => <label key={t} className="chip"><input type="checkbox" checked={p.types.includes(t)} onChange={() => set({ types: p.types.includes(t) ? p.types.filter((x) => x !== t) : [...p.types, t] })} />{t}</label>)}</div>
-      <p>Chapter-wise split (auto): {p.chapters.map((c) => `${c} ≈ ${Math.round(p.marks / p.chapters.length)}m`).join(' · ')}</p>
-      <label className="chip"><input type="checkbox" checked={p.neg} onChange={() => set({ neg: !p.neg })} />Negative marking</label>
-      <label>Additional instructions<textarea value={p.instr} onChange={(e) => set({ instr: e.target.value })} /></label></div></>,
-    <div className="grid">{[['Bank', 'Existing Question Bank'], ['AI', 'AI-Generated Questions'], ['Both', 'Both Bank and AI']].map(([k, l]) => <button key={k} className={'card pick' + (p.source === k ? ' on' : '')} onClick={() => set({ source: k })}>{l}</button>)}</div>,
+        <button onClick={() => set({ chapters: p.chapters.length === Object.keys(chs).length ? [] : Object.keys(chs) })}>{p.chapters.length === Object.keys(chs).length ? 'Clear all' : 'Select all'}</button></div>
+      {Object.keys(chs).filter((c) => c.toLowerCase().includes(q.toLowerCase())).map((c) => <details key={c} className="card"><summary><label><input type="checkbox" checked={p.chapters.includes(c)} onChange={() => set({ chapters: p.chapters.includes(c) ? p.chapters.filter((x) => x !== c) : [...p.chapters, c], qs: p.qs.filter((x) => x.ch !== c || p.chapters.includes(c) === false) })} /> {c}</label><small> {BANK.filter((x) => x.ch === c && inScope(x, p.board, p.std, p.subject)).length} questions</small></summary>{chs[c].map((t) => <div key={t} className="sub">• {t}</div>)}</details>)}
+      <p><b>{p.chapters.length}</b> selected{p.chapters.length ? ': ' + p.chapters.join(', ') : ''}</p></>,
+    /* 3. Setup: only patterns that fit the chosen board, standard and subject */
     <>
-      <div className="card sum"><b>{p.qs.length}</b> questions · <b>{total}</b> / {p.marks} marks {total !== p.marks && p.qs.length > 0 && <Badge c="warn">Marks differ from target</Badge>} · {[...new Set(p.qs.map((x) => x.ch))].map((c) => c + ': ' + p.qs.filter((x) => x.ch === c).length).join(' · ')}</div>
-      <div className="acts"><button className="primary" disabled={busy} onClick={gen}>{busy ? 'Generating…' : p.qs.length ? 'Regenerate all' : 'Auto-generate questions'}</button>
-        <button onClick={() => set({ qs: [...p.qs, ai()] })}>+ Add AI question</button>
-        <select aria-label="Add from bank" value="" onChange={(e) => { const x = BANK.find((b) => b.id === +e.target.value); if (x) set({ qs: [...p.qs, { ...x, uid: uid() }] }) }}><option value="">+ Add from bank…</option>{pool.map((x) => <option key={x.id} value={x.id}>{plain(x.text).slice(0, 50)}</option>)}</select></div>
-      <ChapterPicker p={p} add={(x) => set({ qs: [...p.qs, mk(x)] })} />
-      {!p.qs.length && <div className="card">No questions yet. Pick them chapter by chapter above, or click “Auto-generate questions”.</div>}
-      {p.qs.map((x, i) => <QRow key={x.uid} q={x} i={i} last={i === p.qs.length - 1} ch={(o) => chq(x.uid, o)} eq={() => setEqFor(x.uid)}
-        mv={(d) => { const a = [...p.qs];[a[i], a[i + d]] = [a[i + d], a[i]]; set({ qs: a }) }}
-        dup={() => { const a = [...p.qs]; a.splice(i + 1, 0, { ...x, uid: uid() }); set({ qs: a }) }}
-        del={() => set({ qs: p.qs.filter((y) => y.uid !== x.uid) })}
-        regen={() => { chq(x.uid, { text: AI_TXT[Math.floor(Math.random() * AI_TXT.length)], src: 'AI Generated', flag: true, ans: '' }); toast('Question regenerated (dummy AI)') }} />)}
+      <p className="ctx">{scope}</p>
+      {patterns.length > 0 && <><h4>Start from a pattern</h4><p><small>Fills marks, time and question types. You can change every value afterwards.</small></p>
+        <div className="pat">{patterns.map((x) => <button key={x.id} className={'card pick' + (p.pat === x.id ? ' on' : '')} aria-pressed={p.pat === x.id} onClick={() => set({ pat: x.id, marks: x.marks, mins: x.mins, nq: x.nq || p.nq, types: x.types })}>{x.label}<small>{x.note}</small></button>)}</div></>}
+      <div className="card form">
+        <label>Examination name<input value={p.name} onChange={(e) => set({ name: e.target.value })} /></label>
+        <div className="grid"><label>Total marks<input type="number" value={p.marks} onChange={(e) => set({ marks: +e.target.value })} /></label><label>Duration (min)<input type="number" value={p.mins} onChange={(e) => set({ mins: +e.target.value })} /></label>
+          <label>No. of questions<input type="number" value={p.nq} onChange={(e) => set({ nq: +e.target.value })} /></label>
+          <label>Difficulty<select value={p.diff} onChange={(e) => set({ diff: e.target.value })}>{['Easy', 'Medium', 'Hard', 'Mixed'].map((d) => <option key={d}>{d}</option>)}</select></label></div>
+        <h4>Question types</h4><div className="chips">{TYPES.map((t) => <label key={t} className="chip"><input type="checkbox" checked={p.types.includes(t)} onChange={() => set({ types: p.types.includes(t) ? p.types.filter((x) => x !== t) : [...p.types, t] })} />{t}</label>)}</div>
+        <label className="chip"><input type="checkbox" checked={p.neg} onChange={() => set({ neg: !p.neg })} />Negative marking</label>
+        <label>Additional instructions<textarea value={p.instr} onChange={(e) => set({ instr: e.target.value })} /></label></div></>,
+    /* 4. Questions: tick questions from the bank (grouped by type) or auto-fill */
+    <>
+      <div className="card sum qsum"><div><b>{p.qs.length}</b> questions · <b>{total}</b> / {p.marks} marks {total !== p.marks && p.qs.length > 0 && <Badge c="warn">{total > p.marks ? 'Over target' : 'Under target'}</Badge>}</div>
+        <div className="bar" aria-hidden="true"><div style={{ width: Math.min(100, p.marks ? total / p.marks * 100 : 0) + '%' }} /></div></div>
+      <div className="seg qseg" role="tablist"><button type="button" role="tab" aria-selected={qv === 'add'} className={qv === 'add' ? 'on' : ''} onClick={() => setQv('add')}>Choose questions</button><button type="button" role="tab" aria-selected={qv === 'mine'} className={qv === 'mine' ? 'on' : ''} onClick={() => setQv('mine')}>My paper ({p.qs.length})</button></div>
+      {qv === 'add' ? <>
+        <div className="acts qacts"><select aria-label="Auto-fill from" value={p.source} onChange={(e) => set({ source: e.target.value })}><option value="Bank">Auto-fill: Question bank</option><option value="AI">Auto-fill: AI</option><option value="Both">Auto-fill: Bank + AI</option></select>
+          <button className="primary" disabled={busy} onClick={gen}>{busy ? 'Working…' : p.qs.length ? 'Refill' : 'Auto-fill'}</button>
+          <button onClick={() => set({ qs: [...p.qs, ai()] })}>+ AI question</button></div>
+        <QPick p={p} set={set} mk={mk} /></> : <>
+        {!p.qs.length && <div className="card empty"><b>Nothing added yet</b><small>Tick questions under “Choose questions”, or use Auto-fill.</small><button onClick={() => setQv('add')}>Choose questions</button></div>}
+        {p.qs.map((x, i) => <QRow key={x.uid} q={x} i={i} last={i === p.qs.length - 1} ch={(o) => chq(x.uid, o)} eq={() => setEqFor(x.uid)}
+          mv={(d) => { const a = [...p.qs];[a[i], a[i + d]] = [a[i + d], a[i]]; set({ qs: a }) }}
+          dup={() => { const a = [...p.qs]; a.splice(i + 1, 0, { ...x, uid: uid() }); set({ qs: a }) }}
+          del={() => set({ qs: p.qs.filter((y) => y.uid !== x.uid) })}
+          regen={() => { chq(x.uid, { text: AI_TXT[Math.floor(Math.random() * AI_TXT.length)], src: 'AI Generated', flag: true, ans: '' }); toast('Question regenerated (dummy AI)') }} />)}</>}
       {eqFor && <Eq onClose={() => setEqFor(null)} onApply={(s) => { const x = p.qs.find((y) => y.uid === eqFor); chq(eqFor, { text: x.text + ' ' + s }); setEqFor(null) }} />}</>,
+    /* 5. Format */
     <>
       <div className="tabs"><button className={ft === 'b' ? 'on' : ''} onClick={() => setFt('b')}>Built-in templates</button><button className={ft === 'm' ? 'on' : ''} onClick={() => setFt('m')}>My uploaded formats</button></div>
       <div className="grid">{(ft === 'b' ? TEMPLATES : formats).map((t) => <button key={t.id} className={'card pick' + (p.tpl === t.id ? ' on' : '')} onClick={() => set({ tpl: t.id })}><Thumb s={t.id === 't2' ? 'c' : ''} />{t.name}<small>{t.school || t.cat}{t.kind ? ' · ' + t.kind.toUpperCase() + ' format' : ''}</small></button>)}</div>
       {ft === 'm' && !formats.length && <div className="card">No uploaded formats yet. Upload your school's DOCX or PDF in Templates & My Formats.</div>}</>,
-    <><p><small>This is how the paper will print. Questions are grouped into sections by type. {(() => { const f = formats.find((x) => x.id === p.tpl); return f && f.kind === 'docx' ? 'The Word download is built inside your own school file (same letterhead, fonts, header and footer); this preview is a simplified view.' : 'The DOCX export follows the same layout.' })()} {total !== p.marks && <Badge c="warn">Questions add up to {total} of {p.marks} marks</Badge>}</small></p><Paper p={p} formats={formats} /></>,
-    <div className="card">
-      <label className="chip"><input type="checkbox" checked={p.key} onChange={() => set({ key: !p.key })} />Include answer key</label>
-      <div className="acts"><button className="primary" onClick={docx}>Download DOCX</button><button onClick={() => { window.print(); saveP('Completed'); setDone(true) }}>Download PDF (print)</button></div>
-      {done && <div className="ok">Export generated successfully. Saved in My Papers.</div>}</div>
+    /* 6. Export: download first, preview below */
+    <>
+      <div className="card">
+        <label className="chip"><input type="checkbox" checked={p.key} onChange={() => set({ key: !p.key })} />Include answer key</label>
+        <div className="acts"><button className="primary" onClick={docx}>Download DOCX</button><button onClick={() => { window.print(); saveP('Completed'); setDone(true) }}>Download PDF (print)</button></div>
+        {done && <div className="ok">Export generated successfully. Saved in My Papers.</div>}</div>
+      <p><small>This is how the paper will print. Questions are grouped into sections by type. {(() => { const f = formats.find((x) => x.id === p.tpl); return f && f.kind === 'docx' ? 'The Word download is built inside your own school file (same letterhead, fonts, header and footer); this preview is a simplified view.' : 'The DOCX export follows the same layout.' })()} {total !== p.marks && <Badge c="warn">Questions add up to {total} of {p.marks} marks</Badge>}</small></p><Paper p={p} formats={formats} /></>
   ][step]
   return <section>
     <ol className="steps">{STEPS.map((t, i) => <li key={t}><button disabled={i > step && !valid} className={i === step ? 'on' : i < step ? 'done' : ''} onClick={() => setStep(i)}>{i < step ? <Ic n="check" s={14} /> : i + 1} {t}</button></li>)}</ol>
     <div className="wz-prog"><b>Step {step + 1} of {STEPS.length}</b> · {STEPS[step]}<div className="bar"><div style={{ width: ((step + 1) / STEPS.length * 100) + '%' }} /></div></div>
     <div className="wz-h"><h2>{STEPS[step]}</h2><small>Step {step + 1} of {STEPS.length}</small></div>{V}
     <footer><button disabled={!step} onClick={() => setStep(step - 1)}>← Back</button><button className="ghost" onClick={() => saveP('Draft')}>Save draft</button>
-      <button className="primary" disabled={!valid || step === 9} onClick={() => setStep(step + 1)}>Continue →</button></footer>
+      <button className="primary" disabled={!valid || step === STEPS.length - 1} onClick={() => setStep(step + 1)}>Continue →</button></footer>
     {!valid && <p className="err">Please complete this step to continue.</p>}</section>
 }
 
@@ -469,12 +494,12 @@ export default function App() {
   const goBack = (fallback) => { const st = history.state || {}; if ((st.idx || 0) > 0 && !st.drawer) history.back(); else go(fallback, true) }
   const start = (o = {}, st = 0) => { setP({ ...blank, key: prefs.key, medium: prefs.medium, ...o }); setStep(st); go('Generate Paper') }
   const saveP = (status) => { const id = p.id || uid(), np = { ...p, id, status, date: today() }; setP(np); setPapers((ps) => [np, ...ps.filter((x) => x.id !== id)]); toast(status === 'Draft' ? 'Draft saved' : 'Saved to My Papers') }
-  const openP = (x) => { setP({ ...blank, ...x }); setStep(6); go('Generate Paper') }
+  const openP = (x) => { setP({ ...blank, ...x }); setStep(3); go('Generate Paper') }
   const addQ = (q, c) => { setP((x) => ({ ...x, qs: [...x.qs, { ...q, uid: uid(), src: c ? 'Bank (customized)' : q.src || 'Question Bank' }] })); toast('Added to current paper') }
   const addCustom = (q) => { const x = { ...q, id: Date.now(), src: 'My Question' }; BANK.push(x); const c = [...custom, x]; setCustom(c); try { localStorage.setItem('ep_custom', JSON.stringify(c)) } catch { /* ignore */ } toast('Question saved to your bank') }
   const tf = (a, s, v) => s(a.includes(v) ? a.filter((x) => x !== v) : [...a, v])
-  const useT = (id) => { setP({ ...p, tpl: id }); setStep(7); go('Generate Paper'); toast('Template selected') }
-  const useBp = (b) => { const full = b.board && b.std && b.subject; start({ name: b.name, marks: b.rows.reduce((a, r) => a + r.n * r.m, 0), nq: b.rows.reduce((a, r) => a + r.n, 0), types: [...new Set(b.rows.map((r) => r.type))], board: b.board, std: b.std, subject: b.subject, diff: 'Mixed' }, full ? 3 : 0); toast('Blueprint applied') }
+  const useT = (id) => { setP({ ...p, tpl: id }); setStep(4); go('Generate Paper'); toast('Template selected') }
+  const useBp = (b) => { const full = b.board && b.std && b.subject; start({ name: b.name, marks: b.rows.reduce((a, r) => a + r.n * r.m, 0), nq: b.rows.reduce((a, r) => a + r.n, 0), types: [...new Set(b.rows.map((r) => r.type))], board: b.board, std: b.std, subject: b.subject, diff: 'Mixed' }, full ? 1 : 0); toast('Blueprint applied') }
   const first = (user && user.name ? user.name.trim().split(/\s+/)[0] : '') || 'Teacher'
   const onAuthed = (u, kind) => {
     userRef.current = u; setUser(u); toast(kind === 'register' ? 'Welcome to EduPaper AI, ' + u.name.trim().split(/\s+/)[0] : 'Welcome back, ' + u.name.trim().split(/\s+/)[0])

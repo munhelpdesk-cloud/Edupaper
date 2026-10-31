@@ -654,3 +654,25 @@ header input{border-radius:8px;background:var(--surf);box-shadow:var(--sh1)}
 
 .qimg{display:block;max-width:100%;max-height:240px;object-fit:contain;margin:.4rem 0;border-radius:6px;background:#fff}
 .sync p{margin:.2rem 0}.sync .ferr{color:var(--danger,#B91C1C)}
+
+/* ---- Paper wizard v2: one-screen class setup, checkbox question picker grouped by type ---- */
+.ctx{margin:0 0 12px;color:var(--t2);font-size:14px}
+.wz-h~h4{margin:18px 0 8px}
+.qchips{display:flex;gap:8px;flex-wrap:wrap}
+.qchips button{border-radius:99px;min-height:38px;padding:6px 14px;background:var(--surf);border:1.5px solid var(--b);color:var(--t);font-weight:500}
+.qchips button em{font-style:normal;color:var(--t2);margin-left:4px;font-variant-numeric:tabular-nums}
+.qchips button.on{background:var(--p);border-color:var(--p);color:var(--on-p)}.qchips button.on em{color:inherit;opacity:.85}
+.qp{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.qp>input[type=search]{width:100%}
+.qg-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 8px}
+.qg-h .chip{border:0;background:none;padding:0;min-height:36px;font-size:16px}.qg-h small{color:var(--t2)}
+.qx{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-top:1px solid var(--b);margin:0;cursor:pointer;font-weight:500}
+.qx:first-child{border-top:0}.qx:hover{background:var(--surf2)}.qx.on{background:var(--tint)}
+.qx input[type=checkbox]{flex:none;width:22px;height:22px;margin:1px 0 0;accent-color:var(--p)}
+.qx .qt{flex:1;min-width:0;display:block}.qx .qt small{display:block;margin-top:4px;color:var(--t2);font-weight:400}
+.qsum{display:flex;flex-direction:column;gap:10px}.qsum .bar{margin:0}
+.qseg{margin:12px 0}
+.qacts{align-items:stretch;margin:0 0 4px}.qacts select{flex:1 1 180px;min-height:40px}
+.qacts .primary{min-width:96px}
+@media(max-width:639px){.qacts select{flex-basis:100%}.qacts button{flex:1}.qx{padding:14px 12px}}
+@media(max-width:639px){main:has(footer){padding-bottom:96px}}

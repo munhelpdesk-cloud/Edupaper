@@ -81,10 +81,10 @@ export const FAQ = [
 
 // Exam pattern presets. Teachers can edit every value after choosing one. Check the marks scheme against the current board circular before use.
 export const PATTERNS = [
-  { id: 'cbse10m', board: 'CBSE', label: 'CBSE Class 10 Mathematics', note: '80 marks · 3 hours · Sections A to E (MCQ, Very Short, Short, Long, Case-based)', marks: 80, mins: 180, nq: 38, types: ['MCQ', 'Very Short', 'Short', 'Long', 'Case-based'] },
-  { id: 'cbse10s', board: 'CBSE', label: 'CBSE Class 10 Science', note: '80 marks · 3 hours · Sections A to E', marks: 80, mins: 180, nq: 39, types: ['MCQ', 'Very Short', 'Short', 'Long', 'Case-based'] },
-  { id: 'gseb10', board: 'GSEB', label: 'GSEB Std 10 annual paper', note: '80 marks · 3 hours · MCQ section plus written section', marks: 80, mins: 180, nq: 0, types: ['MCQ', 'Very Short', 'Short', 'Long'] },
-  { id: 'gseb12', board: 'GSEB', label: 'GSEB Std 12 Science annual paper', note: '100 marks · 3 hours', marks: 100, mins: 180, nq: 0, types: ['MCQ', 'Very Short', 'Short', 'Long', 'Numerical'] },
+  { id: 'cbse10m', board: 'CBSE', std: 'Class 10', sub: 'Mathematics', label: 'CBSE Class 10 Mathematics', note: '80 marks · 3 hours · Sections A to E (MCQ, Very Short, Short, Long, Case-based)', marks: 80, mins: 180, nq: 38, types: ['MCQ', 'Very Short', 'Short', 'Long', 'Case-based'] },
+  { id: 'cbse10s', board: 'CBSE', std: 'Class 10', sub: 'Science', label: 'CBSE Class 10 Science', note: '80 marks · 3 hours · Sections A to E', marks: 80, mins: 180, nq: 39, types: ['MCQ', 'Very Short', 'Short', 'Long', 'Case-based'] },
+  { id: 'gseb10', board: 'GSEB', std: 'Std 10', label: 'GSEB Std 10 annual paper', note: '80 marks · 3 hours · MCQ section plus written section', marks: 80, mins: 180, nq: 0, types: ['MCQ', 'Very Short', 'Short', 'Long'] },
+  { id: 'gseb12', board: 'GSEB', std: 'Std 12', label: 'GSEB Std 12 Science annual paper', note: '100 marks · 3 hours', marks: 100, mins: 180, nq: 0, types: ['MCQ', 'Very Short', 'Short', 'Long', 'Numerical'] },
   { id: 'ut25', board: '', label: 'Unit test, 25 marks', note: '1 hour · MCQ, short and long answers', marks: 25, mins: 60, nq: 12, types: ['MCQ', 'Short', 'Long'] },
   { id: 'wk20', board: '', label: 'Weekly test, 20 marks', note: '45 minutes · MCQ and short answers', marks: 20, mins: 45, nq: 10, types: ['MCQ', 'Short'] }
 ]
