@@ -27,6 +27,7 @@ let n = 100
 const uid = () => 'u' + Date.now().toString(36) + ++n
 
 const STEPS = ['Class', 'Chapters', 'Setup', 'Questions', 'Format', 'Export']
+const HINTS = ['Pick the board, standard, subject and medium.', 'Choose the chapters this paper should cover.', 'Set marks, time and the question types.', 'Tick every question you want in the paper.', 'Choose how the printed paper will look.', 'Download the Word file or print it.']
 const blank = { board: '', std: '', medium: 'English', subject: '', chapters: [], name: 'Unit Test 1', marks: 25, mins: 60, diff: 'Medium', nq: 8, types: ['MCQ', 'Short', 'Long'], neg: false, instr: 'All questions are compulsory.', source: 'Both', qs: [], pat: '', tpl: 't1', key: true, id: null, status: 'Draft' }
 const plain = (t = '') => texToText(t)
 const mins = (m) => { const h = Math.floor(m / 60), r = m % 60; return [h && h + (h > 1 ? ' hours' : ' hour'), r && r + ' minutes'].filter(Boolean).join(' ') || '—' }
@@ -100,11 +101,14 @@ function Paper({ p, formats }) {
     <div className="foot">End of question paper</div></div>
 }
 
+const BINFO = { GSEB: 'Gujarat Secondary and Higher Secondary Education Board', CBSE: 'Central Board of Secondary Education', ICSE: 'Indian Certificate of Secondary Education' }
+const SUBIC = { Mathematics: 'sigma', Science: 'flask', Physics: 'zap', Chemistry: 'flask' }
+const Row = ({ i = 0, ic, t, s, on, f }) => <button type="button" className={'card lt' + (on ? ' on' : '')} aria-pressed={!!on} onClick={f}><span className={'ico c' + (i % 5)}><Ic n={ic} s={22} /></span><span className="lt-t"><b>{t}</b>{s && <small>{s}</small>}</span>{on ? <span className="lt-ck"><Ic n="check" s={14} /></span> : <span className="lt-ch"><Ic n="right" s={18} /></span>}</button>
 const Pick = ({ items, v, f, sub }) => <div className="grid">{items.map((i) => <button key={i} className={'card pick' + (v === i ? ' on' : '')} onClick={() => f(i)}>{i}{sub && <small>{sub}</small>}</button>)}</div>
 
 /** Browse every question of the chosen chapters. One checkbox per question, grouped by type (all MCQ together, then Short, Long ...). */
 function QPick({ p, set, mk }) {
-  const [ty, setTy] = useState(''), [ch, setCh] = useState(''), [q, setQ] = useState('')
+  const [ty, setTy] = useState(''), [ch, setCh] = useState(''), [q, setQ] = useState(''), [pv, setPv] = useState(null)
   const base = BANK.filter((x) => p.chapters.includes(x.ch) && inScope(x, p.board, p.std, p.subject) && (!ch || x.ch === ch))
   const pool = base.filter((x) => !q || plain(x.text).toLowerCase().includes(q.toLowerCase()))
   const present = [...TYPES.filter((t) => pool.some((x) => x.type === t)), ...(pool.some((x) => !TYPES.includes(x.type)) ? ['Other'] : [])]
@@ -120,9 +124,10 @@ function QPick({ p, set, mk }) {
     <div className="qchips" role="group" aria-label="Question type">{['', ...present].map((t) => <button key={t || 'all'} type="button" className={ty === t ? 'on' : ''} aria-pressed={ty === t} onClick={() => setTy(t)}>{t || 'All'} <em>{t ? n(t) : pool.length}</em></button>)}</div>
     {!groups.length && <div className="card empty"><b>No saved questions here</b><small>{base.length ? 'Nothing matches your search or filter.' : 'This chapter has no saved questions yet. Use “+ AI question” or Auto-fill.'}</small></div>}
     {groups.map(([t, xs]) => <div key={t} className="qg">
-      <div className="qg-h"><label className="chip"><input type="checkbox" checked={xs.every(has)} onChange={() => toggleAll(xs)} aria-label={'Select all ' + t} /><b>{t}</b></label><small>{xs.filter(has).length} of {xs.length} added</small></div>
+      <div className="qg-h"><label className="chip"><input type="checkbox" checked={xs.every(has)} onChange={() => toggleAll(xs)} aria-label={'Select all ' + t} /><b>{t}</b></label><span className="qg-c"><b>{xs.filter(has).length}</b>/{xs.length} added</span></div>
       <div className="qlist">{xs.map((x) => <label key={x.id} className={'qx' + (has(x) ? ' on' : '')}><input type="checkbox" checked={has(x)} onChange={() => toggle(x)} />
-        <span className="qt"><span><M t={x.text} /></span><small>{p.chapters.length > 1 && !ch ? x.ch + ' · ' : ''}{x.diff} · {x.marks} {x.marks > 1 ? 'marks' : 'mark'}</small></span></label>)}</div></div>)}
+        <span className="qt"><span className="qtx"><M t={x.text} /></span><small><i className="dot" data-d={x.diff} />{(p.chapters.length > 1 && !ch ? x.ch + ' · ' : '') + x.diff + ' · ' + x.marks + (x.marks > 1 ? ' marks' : ' mark')}</small></span><button type="button" className="pvb" onClick={() => setPv(x)}>Preview</button></label>)}</div></div>)}
+    {pv && <Modal title="Question preview" onClose={() => setPv(null)}><p><M t={pv.text} /></p>{pv.image ? <img className="qimg" src={imgUrl(pv.image)} alt={pv.imageAlt || 'Figure'} /> : pv.diagram && <Diagram />}<p>Answer: <M t={pv.ans || '— not available —'} /></p></Modal>}
   </div>
 }
 
@@ -215,9 +220,9 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
   const V = [
     /* 1. Class: board, standard, medium and subject on one screen, asked once */
     <>
-      <h4>Board</h4><Pick items={Object.keys(CUR)} v={p.board} f={(b) => set({ board: b, std: '', subject: '', chapters: [], qs: [] })} sub={cloud.liveSyllabus ? 'Live syllabus' : 'Demo content'} />
-      {p.board && <><h4>Standard</h4><Pick items={stds} v={p.std} f={(x) => set({ std: x, subject: '', chapters: [], qs: [] })} /></>}
-      {p.std && <><h4>Subject</h4>{subs.length ? <Pick items={subs} v={p.subject} f={(x) => set({ subject: x, chapters: [], qs: [] })} /> : <div className="card">This class is not configured yet for {p.board} (demo). Choose another standard.</div>}</>}
+      <h4>Board</h4>{Object.keys(CUR).map((b, i) => <Row key={b} i={i} ic="bank" t={b} s={BINFO[b] || (cloud.liveSyllabus ? 'Live syllabus' : 'Demo content')} on={p.board === b} f={() => set({ board: b, std: '', subject: '', chapters: [], qs: [] })} />)}
+      {p.board && <><h4>Standard</h4><div className="numgrid">{stds.map((x) => <button key={x} type="button" aria-label={x} aria-pressed={p.std === x} className={'ng' + (p.std === x ? ' on' : '')} onClick={() => set({ std: x, subject: '', chapters: [], qs: [] })}>{x.replace(/\D/g, '') || x}</button>)}</div></>}
+      {p.std && <><h4>Subject</h4>{subs.length ? subs.map((x, i) => <Row key={x} i={i + 1} ic={SUBIC[x] || 'book'} t={x} on={p.subject === x} f={() => set({ subject: x, chapters: [], qs: [] })} />) : <div className="card">This class is not configured yet for {p.board} (demo). Choose another standard.</div>}</>}
       {p.subject && <><h4>Medium</h4><div className="qchips" role="group" aria-label="Medium">{MEDIA.map((m) => <button key={m} type="button" className={p.medium === m ? 'on' : ''} aria-pressed={p.medium === m} onClick={() => set({ medium: m })}>{m}</button>)}</div></>}
     </>,
     /* 2. Chapters */
@@ -226,7 +231,7 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
       <div className="row"><input placeholder="Search chapters…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search chapters" />
         <button onClick={() => set({ chapters: p.chapters.length === Object.keys(chs).length ? [] : Object.keys(chs) })}>{p.chapters.length === Object.keys(chs).length ? 'Clear all' : 'Select all'}</button></div>
       {Object.keys(chs).filter((c) => c.toLowerCase().includes(q.toLowerCase())).map((c) => <details key={c} className="card"><summary><label><input type="checkbox" checked={p.chapters.includes(c)} onChange={() => set({ chapters: p.chapters.includes(c) ? p.chapters.filter((x) => x !== c) : [...p.chapters, c], qs: p.qs.filter((x) => x.ch !== c || p.chapters.includes(c) === false) })} /> {c}</label><small> {BANK.filter((x) => x.ch === c && inScope(x, p.board, p.std, p.subject)).length} questions</small></summary>{chs[c].map((t) => <div key={t} className="sub">• {t}</div>)}</details>)}
-      <p><b>{p.chapters.length}</b> selected{p.chapters.length ? ': ' + p.chapters.join(', ') : ''}</p></>,
+      <div className="selbox"><b>{p.chapters.length} {p.chapters.length === 1 ? 'chapter' : 'chapters'} selected</b>{p.chapters.length > 0 && <div className="rms">{p.chapters.map((c) => <button key={c} type="button" className="rm" onClick={() => set({ chapters: p.chapters.filter((x) => x !== c), qs: p.qs.filter((x) => x.ch !== c) })}>{c} <Ic n="x" s={13} /></button>)}</div>}</div></>,
     /* 3. Setup: only patterns that fit the chosen board, standard and subject */
     <>
       <p className="ctx">{scope}</p>
@@ -242,7 +247,8 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
         <label>Additional instructions<textarea value={p.instr} onChange={(e) => set({ instr: e.target.value })} /></label></div></>,
     /* 4. Questions: tick questions from the bank (grouped by type) or auto-fill */
     <>
-      <div className="card sum qsum"><div><b>{p.qs.length}</b> questions · <b>{total}</b> / {p.marks} marks {total !== p.marks && p.qs.length > 0 && <Badge c="warn">{total > p.marks ? 'Over target' : 'Under target'}</Badge>}</div>
+      <div className="card sum qsum"><div className="qs-n"><b>{p.qs.length}</b><span>{p.qs.length === 1 ? 'question' : 'questions'}</span></div>
+        <div className="qs-m"><b>{total}<em>/{p.marks}</em></b><span>marks {total !== p.marks && p.qs.length > 0 ? <Badge c="warn">{total > p.marks ? 'Over target' : 'Under target'}</Badge> : null}</span></div>
         <div className="bar" aria-hidden="true"><div style={{ width: Math.min(100, p.marks ? total / p.marks * 100 : 0) + '%' }} /></div></div>
       <div className="seg qseg" role="tablist"><button type="button" role="tab" aria-selected={qv === 'add'} className={qv === 'add' ? 'on' : ''} onClick={() => setQv('add')}>Choose questions</button><button type="button" role="tab" aria-selected={qv === 'mine'} className={qv === 'mine' ? 'on' : ''} onClick={() => setQv('mine')}>My paper ({p.qs.length})</button></div>
       {qv === 'add' ? <>
@@ -272,10 +278,11 @@ function Wizard({ p, setP, step, setStep, formats, saveP, toast }) {
   ][step]
   return <section>
     <ol className="steps">{STEPS.map((t, i) => <li key={t}><button disabled={i > step && !valid} className={i === step ? 'on' : i < step ? 'done' : ''} onClick={() => setStep(i)}>{i < step ? <Ic n="check" s={14} /> : i + 1} {t}</button></li>)}</ol>
-    <div className="wz-prog"><b>Step {step + 1} of {STEPS.length}</b> · {STEPS[step]}<div className="bar"><div style={{ width: ((step + 1) / STEPS.length * 100) + '%' }} /></div></div>
-    <div className="wz-h"><h2>{STEPS[step]}</h2><small>Step {step + 1} of {STEPS.length}</small></div>{V}
-    <footer><button disabled={!step} onClick={() => setStep(step - 1)}>← Back</button><button className="ghost" onClick={() => saveP('Draft')}>Save draft</button>
-      <button className="primary" disabled={!valid || step === STEPS.length - 1} onClick={() => setStep(step + 1)}>Continue →</button></footer>
+    <div className="wz-prog"><div className="wz-ticks" aria-hidden="true">{STEPS.map((t, i) => <i key={t} className={i < step ? 'd' : i === step ? 'c' : ''} />)}</div>
+      <small className="wz-step">Step {step + 1} of {STEPS.length}</small><b className="wz-title">{STEPS[step]}</b><small>{HINTS[step]}</small></div>
+    <div className="wz-h"><small className="wz-step">Step {step + 1} of {STEPS.length}</small><h2>{STEPS[step]}</h2><small>{HINTS[step]}</small></div>{V}
+    <footer><button className="bk-b" disabled={!step} onClick={() => setStep(step - 1)}><Ic n="back" s={18} /> Back</button><button className="ghost" onClick={() => saveP('Draft')}>Save draft</button>
+      <button className="primary" disabled={!valid || step === STEPS.length - 1} onClick={() => setStep(step + 1)}>{step === 3 && p.qs.length ? 'Continue · ' + p.qs.length + ' Qs' : 'Continue'} <Ic n="right" s={18} /></button></footer>
     {!valid && <p className="err">Please complete this step to continue.</p>}</section>
 }
 
@@ -425,7 +432,7 @@ export default function App() {
     const r = document.documentElement, mq = window.matchMedia('(prefers-color-scheme: dark)')
     theme === 'system' ? r.removeAttribute('data-theme') : r.setAttribute('data-theme', theme)
     const apply = () => {
-      const dark = theme === 'dark' || (theme === 'system' && mq.matches), c = dark ? '#0B1020' : '#F5F6FA'
+      const dark = theme === 'dark' || (theme === 'system' && mq.matches), c = dark ? '#0B1220' : '#F5F8FF'
       const meta = document.querySelector('meta[name=theme-color]'); if (meta) meta.setAttribute('content', c)
       if (Capacitor.isNativePlatform()) { StatusBar.setStyle({ style: dark ? Style.Dark : Style.Light }).catch(() => {}); StatusBar.setBackgroundColor({ color: c }).catch(() => {}) }
     }
